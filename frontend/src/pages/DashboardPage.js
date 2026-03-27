@@ -91,15 +91,7 @@ const sliderStyles = {
   header: { display: "flex", justifyContent: "space-between", marginBottom: "12px" },
   label: { color: "#94a3b8", fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" },
   values: { color: "#f59e0b", fontSize: "14px", fontWeight: 700 },
-  track: { position: "relative", height: "6px", background: "#334155", borderRadius: "3px", margin: "8px 0" },
-  fill: { position: "absolute", height: "100%", background: "#f59e0b", borderRadius: "3px", pointerEvents: "none" },
-  input: {
-    position: "absolute", width: "100%", height: "6px", background: "transparent",
-    appearance: "none", WebkitAppearance: "none", cursor: "pointer", top: 0, left: 0, margin: 0,
-    outline: "none", pointerEvents: "all",
-  },
-  ticks: { display: "flex", justifyContent: "space-between" },
-  tick: { color: "#64748b", fontSize: "11px" },
+  tick: { color: "#64748b", fontSize: "12px", minWidth: "70px" },
 };
 
 export default function DashboardPage({ onLogout }) {
@@ -110,6 +102,7 @@ export default function DashboardPage({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [tempMin, setTempMin] = useState(20);
   const [tempMax, setTempMax] = useState(25);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -146,6 +139,7 @@ export default function DashboardPage({ onLogout }) {
     try {
       await deleteAlert(id);
       setAlerts((prev) => prev.filter((a) => a._id !== id));
+      setConfirmDelete(null);
     } catch (err) {
       console.error(err);
     }
@@ -160,6 +154,37 @@ export default function DashboardPage({ onLogout }) {
 
   return (
     <div style={styles.container}>
+
+      {/* Potvrzovací modal */}
+      {confirmDelete && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
+        }}>
+          <div style={{
+            background: "#1e293b", borderRadius: "12px", padding: "32px",
+            border: "1px solid #334155", maxWidth: "360px", width: "90%", textAlign: "center"
+          }}>
+            <p style={{ color: "#f1f5f9", fontSize: "16px", fontWeight: 600, margin: "0 0 8px" }}>
+              Smazat upozornění?
+            </p>
+            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}>
+              Tato akce je nevratná.
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "10px 24px", color: "#94a3b8", cursor: "pointer", fontSize: "14px" }}
+              >Zrušit</button>
+              <button
+                onClick={() => handleDeleteAlert(confirmDelete)}
+                style={{ background: "#ef4444", border: "none", borderRadius: "8px", padding: "10px 24px", color: "#fff", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}
+              >Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>Hatchery Monitor</h1>
@@ -209,7 +234,6 @@ export default function DashboardPage({ onLogout }) {
           </div>
         </div>
 
-        {/* Slider pro teplotní rozsah */}
         <div style={styles.chartCard}>
           <RangeSlider
             tempMin={tempMin}
@@ -218,7 +242,6 @@ export default function DashboardPage({ onLogout }) {
           />
         </div>
 
-        {/* Graf teplot */}
         <div style={styles.chartCard}>
           <h2 style={styles.chartTitle}>Historie teplot</h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -243,7 +266,6 @@ export default function DashboardPage({ onLogout }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Historie upozornění */}
         {alerts.length > 0 && (
           <div style={styles.chartCard}>
             <h2 style={styles.chartTitle}>Historie upozornění</h2>
@@ -268,7 +290,7 @@ export default function DashboardPage({ onLogout }) {
                   </div>
                   <span style={styles.alertTemp}>{formatTemp(a.temperature)}</span>
                   <button
-                    onClick={() => handleDeleteAlert(a._id)}
+                    onClick={() => setConfirmDelete(a._id)}
                     style={styles.deleteBtn}
                     title="Smazat upozornění"
                   >✕</button>
@@ -314,6 +336,6 @@ const styles = {
   deleteBtn: {
     background: "transparent", border: "1px solid #475569", borderRadius: "6px",
     color: "#94a3b8", cursor: "pointer", fontSize: "12px", padding: "4px 8px",
-    flexShrink: 0, transition: "all 0.2s",
+    flexShrink: 0,
   },
 };
