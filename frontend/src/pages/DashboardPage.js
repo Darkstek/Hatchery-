@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts";
-import { getMeasurements, getLatestMeasurement, getAlerts, getGateways } from "../services/api";
+import { getMeasurements, getLatestMeasurement, getGateways } from "../services/api";
 
 const TEMP_MIN = 20;
 const TEMP_MAX = 25;
