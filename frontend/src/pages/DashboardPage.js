@@ -5,8 +5,25 @@ import {
 } from "recharts";
 import { getMeasurements, getLatestMeasurement, getAlerts, getGateways } from "../services/api";
 
-const TEMP_MIN = 36.5;
-const TEMP_MAX = 38.5;
+const TEMP_MIN = 20;
+const TEMP_MAX = 25;
+
+function formatTemp(temp) {
+  if (temp === null || temp === undefined) return "—";
+  return parseFloat(temp).toFixed(1) + "°C";
+}
+
+function formatTime(timestamp) {
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() + 1);
+  return d.toLocaleString("cs-CZ");
+}
+
+function formatTimeShort(timestamp) {
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() + 1);
+  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+}
 
 function TempStatus({ temp, msg }) {
   if (msg && msg !== "OK") return <span style={{ color: "#f87171", fontWeight: 700 }}>{msg}</span>;
@@ -14,6 +31,33 @@ function TempStatus({ temp, msg }) {
   if (temp < TEMP_MIN) return <span style={{ color: "#60a5fa", fontWeight: 700 }}>PŘÍLIŠ CHLADNO</span>;
   if (temp > TEMP_MAX) return <span style={{ color: "#f87171", fontWeight: 700 }}>PŘÍLIŠ TEPLO</span>;
   return <span style={{ color: "#4ade80", fontWeight: 700 }}>OPTIMÁLNÍ</span>;
+}
+
+function isAlert(item) {
+  if (!item) return false;
+  if (item.msg && item.msg !== "OK") return true;
+  if (item.temperature !== null && item.temperature < TEMP_MIN) return true;
+  if (item.temperature !== null && item.temperature > TEMP_MAX) return true;
+  return false;
+}
+
+function LoadingSpinner() {
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0f172a",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", gap: "20px"
+    }}>
+      <div style={{
+        width: "52px", height: "52px", borderRadius: "50%",
+        border: "4px solid #334155",
+        borderTop: "4px solid #f59e0b",
+        animation: "spin 0.8s linear infinite",
+      }} />
+      <p style={{ color: "#94a3b8", fontSize: "16px", margin: 0 }}>Načítám data...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 }
 
 export default function DashboardPage({ onLogout }) {
@@ -25,18 +69,21 @@ export default function DashboardPage({ onLogout }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [m, l, a, g] = await Promise.all([
+      const [m, l, g] = await Promise.all([
         getMeasurements(50),
         getLatestMeasurement(),
-        getAlerts(),
         getGateways(),
       ]);
+
+      const allAlerts = m.filter(isAlert);
+
       setMeasurements(m.reverse().map((d) => ({
         ...d,
-        time: new Date(d.timestamp).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }),
+        temperature: d.temperature !== null ? parseFloat(parseFloat(d.temperature).toFixed(1)) : null,
+        time: formatTimeShort(d.timestamp),
       })));
       setLatest(l);
-      setAlerts(a);
+      setAlerts(allAlerts.reverse());
       setGateways(g);
     } catch (err) {
       console.error(err);
@@ -47,7 +94,7 @@ export default function DashboardPage({ onLogout }) {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); // refresh každých 10s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -56,33 +103,24 @@ export default function DashboardPage({ onLogout }) {
     onLogout();
   };
 
-  if (loading) return (
-    <div style={{ ...styles.container, justifyContent: "center", alignItems: "center" }}>
-      <p style={{ color: "#94a3b8", fontSize: "18px" }}>Načítám data...</p>
-    </div>
-  );
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div>
-            <h1 style={styles.headerTitle}>Hatchery Monitor</h1>
-            <p style={styles.headerSub}>Monitorování líhně kuřat</p>
-          </div>
+        <div>
+          <h1 style={styles.headerTitle}>Hatchery Monitor</h1>
+          <p style={styles.headerSub}>Monitorování líhně kuřat</p>
         </div>
         <button style={styles.logoutBtn} onClick={handleLogout}>Odhlásit</button>
       </div>
 
       <div style={styles.content}>
-        {/* Status karty */}
         <div style={styles.cardRow}>
-          {/* Aktuální teplota */}
           <div style={styles.card}>
             <p style={styles.cardLabel}>Aktuální teplota</p>
             <p style={styles.bigTemp}>
-              {latest ? (latest.temperature !== null ? `${latest.temperature}°C` : "—") : "—"}
+              {latest ? formatTemp(latest.temperature) : "—"}
             </p>
             <TempStatus temp={latest?.temperature} msg={latest?.msg} />
             <p style={styles.cardSub}>
@@ -90,9 +128,8 @@ export default function DashboardPage({ onLogout }) {
             </p>
           </div>
 
-          {/* Gateway status */}
           <div style={styles.card}>
-            <p style={styles.cardLabel}>Gateway status</p>
+            <p style={styles.cardLabel}>Stav gateway</p>
             {gateways.length === 0 ? (
               <p style={{ color: "#94a3b8" }}>Žádná gateway</p>
             ) : (
@@ -101,67 +138,77 @@ export default function DashboardPage({ onLogout }) {
                   <span style={{ ...styles.dot, background: gw.online ? "#4ade80" : "#f87171" }} />
                   <div>
                     <p style={styles.gwName}>{gw.name}</p>
-                    <p style={styles.gwSub}>{gw.online ? "Online" : "Offline"} · {gw.location}</p>
+                    <p style={styles.gwSub}>{gw.online ? "Připojena" : "Odpojena"} · {gw.location}</p>
                   </div>
                 </div>
               ))
             )}
             <p style={styles.cardSub}>
-              Poslední data: {latest ? new Date(latest.timestamp).toLocaleString("cs-CZ") : "—"}
+              Poslední záznam: {latest ? formatTime(latest.timestamp) : "—"}
             </p>
           </div>
 
-          {/* Alerty */}
           <div style={styles.card}>
-            <p style={styles.cardLabel}>Alerty (tlačítko)</p>
+            <p style={styles.cardLabel}>Upozornění</p>
             <p style={styles.bigTemp}>{alerts.length}</p>
-            <p style={{ color: "#f59e0b", fontWeight: 600 }}>
-              {alerts.length === 0 ? "Žádné problémy" : "Vyžaduje pozornost"}
+            <p style={{ color: alerts.length === 0 ? "#4ade80" : "#f59e0b", fontWeight: 600 }}>
+              {alerts.length === 0 ? "Vše v pořádku" : "Vyžaduje pozornost"}
             </p>
             <p style={styles.cardSub}>
               {alerts.length > 0
-                ? `Poslední: ${new Date(alerts[0].timestamp).toLocaleString("cs-CZ")}`
-                : "Vše v pořádku"}
+                ? `Poslední: ${formatTime(alerts[0].timestamp)}`
+                : "Žádná upozornění"}
             </p>
           </div>
         </div>
 
-        {/* Graf teplot */}
         <div style={styles.chartCard}>
           <h2 style={styles.chartTitle}>Historie teplot</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={measurements} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-              <YAxis domain={[35, 40]} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} unit="°C" />
+              <YAxis domain={[15, 30]} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} unit="°C" />
               <Tooltip
                 contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
                 labelStyle={{ color: "#f1f5f9" }}
                 itemStyle={{ color: "#f59e0b" }}
+                formatter={(value) => value !== null ? `${parseFloat(value).toFixed(1)}°C` : "—"}
               />
               <ReferenceLine y={TEMP_MIN} stroke="#60a5fa" strokeDasharray="5 5" label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }} />
               <ReferenceLine y={TEMP_MAX} stroke="#f87171" strokeDasharray="5 5" label={{ value: "Max", fill: "#f87171", fontSize: 11 }} />
               <Line
                 type="monotone" dataKey="temperature" stroke="#f59e0b"
                 strokeWidth={2} dot={false} activeDot={{ r: 5, fill: "#f59e0b" }}
+                connectNulls={false}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Historie alertů */}
         {alerts.length > 0 && (
           <div style={styles.chartCard}>
-            <h2 style={styles.chartTitle}>Historie problémů</h2>
+            <h2 style={styles.chartTitle}>Historie upozornění</h2>
             <div style={styles.alertList}>
               {alerts.slice(0, 10).map((a) => (
                 <div key={a._id} style={styles.alertRow}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
+                  <div style={{
+                    width: "8px", height: "8px", borderRadius: "50%",
+                    background: a.msg && a.msg !== "OK" ? "#f87171" : "#f59e0b",
+                    flexShrink: 0
+                  }} />
                   <div>
-                    <p style={styles.alertText}>Problém senzoru: {a.msg} — Gateway: {a.gatewayId}</p>
-                    <p style={styles.alertTime}>{new Date(a.timestamp).toLocaleString("cs-CZ")}</p>
+                    <p style={styles.alertText}>
+                      {a.msg && a.msg !== "OK"
+                        ? a.msg
+                        : a.temperature < TEMP_MIN
+                        ? "Teplota pod minimem"
+                        : "Teplota nad maximem"}
+                      {" — Gateway: "}{a.gatewayId}
+                    </p>
+                    <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
                   </div>
-                  <span style={styles.alertTemp}>{a.temperature !== null ? `${a.temperature}°C` : "—"}</span>
+                  <span style={styles.alertTemp}>{formatTemp(a.temperature)}</span>
                 </div>
               ))}
             </div>
