@@ -10,7 +10,11 @@ const authRoutes = require("./routes/auth");
  
 const app = express();
  
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-gateway-id"],
+}));
 app.use(express.json());
  
 // API routes
