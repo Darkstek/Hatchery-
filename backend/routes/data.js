@@ -97,4 +97,18 @@ router.get("/alerts", jwtAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/data/:id — smaže jeden záznam (chráněno JWT)
+router.delete("/:id", jwtAuth, async (req, res) => {
+  try {
+    const deleted = await Measurement.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Záznam nenalezen" });
+    }
+    res.json({ message: "Záznam smazán" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Chyba serveru" });
+  }
+});
+
 module.exports = router;

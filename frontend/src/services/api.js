@@ -52,4 +52,9 @@ export const getGateways = async () => {
   return res.data;
 };
 
+export const deleteAlert = async (id) => {
+  const res = await api.delete(`/api/data/${id}`);
+  return res.data;
+};
+
 export default api;

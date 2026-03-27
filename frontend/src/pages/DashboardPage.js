@@ -3,10 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts";
-import { getMeasurements, getLatestMeasurement, getGateways } from "../services/api";
-
-const TEMP_MIN = 20;
-const TEMP_MAX = 25;
+import { getMeasurements, getLatestMeasurement, getGateways, deleteAlert } from "../services/api";
 
 function formatTemp(temp) {
   if (temp === null || temp === undefined) return "—";
@@ -15,29 +12,29 @@ function formatTemp(temp) {
 
 function formatTime(timestamp) {
   const d = new Date(timestamp);
-  d.setHours(d.getHours() -1);
+  d.setHours(d.getHours() - 1);
   return d.toLocaleString("cs-CZ");
 }
 
 function formatTimeShort(timestamp) {
   const d = new Date(timestamp);
-  d.setHours(d.getHours() -1);
+  d.setHours(d.getHours() - 1);
   return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 }
 
-function TempStatus({ temp, msg }) {
+function TempStatus({ temp, msg, tempMin, tempMax }) {
   if (msg && msg !== "OK") return <span style={{ color: "#f87171", fontWeight: 700 }}>{msg}</span>;
   if (temp === null) return <span style={{ color: "#94a3b8", fontWeight: 700 }}>SENZOR OFFLINE</span>;
-  if (temp < TEMP_MIN) return <span style={{ color: "#60a5fa", fontWeight: 700 }}>PŘÍLIŠ CHLADNO</span>;
-  if (temp > TEMP_MAX) return <span style={{ color: "#f87171", fontWeight: 700 }}>PŘÍLIŠ TEPLO</span>;
+  if (temp < tempMin) return <span style={{ color: "#60a5fa", fontWeight: 700 }}>PŘÍLIŠ CHLADNO</span>;
+  if (temp > tempMax) return <span style={{ color: "#f87171", fontWeight: 700 }}>PŘÍLIŠ TEPLO</span>;
   return <span style={{ color: "#4ade80", fontWeight: 700 }}>OPTIMÁLNÍ</span>;
 }
 
-function isAlert(item) {
+function isAlert(item, tempMin, tempMax) {
   if (!item) return false;
   if (item.msg && item.msg !== "OK") return true;
-  if (item.temperature !== null && item.temperature < TEMP_MIN) return true;
-  if (item.temperature !== null && item.temperature > TEMP_MAX) return true;
+  if (item.temperature !== null && item.temperature < tempMin) return true;
+  if (item.temperature !== null && item.temperature > tempMax) return true;
   return false;
 }
 
@@ -50,8 +47,7 @@ function LoadingSpinner() {
     }}>
       <div style={{
         width: "52px", height: "52px", borderRadius: "50%",
-        border: "4px solid #334155",
-        borderTop: "4px solid #f59e0b",
+        border: "4px solid #334155", borderTop: "4px solid #f59e0b",
         animation: "spin 0.8s linear infinite",
       }} />
       <p style={{ color: "#94a3b8", fontSize: "16px", margin: 0 }}>Načítám data...</p>
@@ -60,12 +56,73 @@ function LoadingSpinner() {
   );
 }
 
+function RangeSlider({ tempMin, tempMax, onChange }) {
+  const MIN = 0;
+  const MAX = 40;
+
+  const handleMin = (e) => {
+    const val = Math.min(Number(e.target.value), tempMax - 1);
+    onChange(val, tempMax);
+  };
+
+  const handleMax = (e) => {
+    const val = Math.max(Number(e.target.value), tempMin + 1);
+    onChange(tempMin, val);
+  };
+
+  const leftPct = ((tempMin - MIN) / (MAX - MIN)) * 100;
+  const rightPct = ((tempMax - MIN) / (MAX - MIN)) * 100;
+
+  return (
+    <div style={sliderStyles.wrapper}>
+      <div style={sliderStyles.header}>
+        <span style={sliderStyles.label}>Teplotní rozsah</span>
+        <span style={sliderStyles.values}>{tempMin}°C – {tempMax}°C</span>
+      </div>
+      <div style={sliderStyles.track}>
+        <div style={{
+          ...sliderStyles.fill,
+          left: `${leftPct}%`,
+          width: `${rightPct - leftPct}%`,
+        }} />
+        <input type="range" min={MIN} max={MAX} value={tempMin}
+          onChange={handleMin} style={sliderStyles.input} />
+        <input type="range" min={MIN} max={MAX} value={tempMax}
+          onChange={handleMax} style={sliderStyles.input} />
+      </div>
+      <div style={sliderStyles.ticks}>
+        <span style={sliderStyles.tick}>{MIN}°C</span>
+        <span style={sliderStyles.tick}>20°C</span>
+        <span style={sliderStyles.tick}>40°C</span>
+      </div>
+    </div>
+  );
+}
+
+const sliderStyles = {
+  wrapper: { padding: "16px 0 8px" },
+  header: { display: "flex", justifyContent: "space-between", marginBottom: "12px" },
+  label: { color: "#94a3b8", fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" },
+  values: { color: "#f59e0b", fontSize: "14px", fontWeight: 700 },
+  track: { position: "relative", height: "6px", background: "#334155", borderRadius: "3px", margin: "8px 0" },
+  fill: { position: "absolute", height: "100%", background: "#f59e0b", borderRadius: "3px", pointerEvents: "none" },
+  input: {
+    position: "absolute", width: "100%", height: "6px", background: "transparent",
+    appearance: "none", WebkitAppearance: "none", cursor: "pointer", top: 0, left: 0, margin: 0,
+    outline: "none", pointerEvents: "all",
+  },
+  ticks: { display: "flex", justifyContent: "space-between" },
+  tick: { color: "#64748b", fontSize: "11px" },
+};
+
 export default function DashboardPage({ onLogout }) {
   const [measurements, setMeasurements] = useState([]);
   const [latest, setLatest] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [gateways, setGateways] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tempMin, setTempMin] = useState(20);
+  const [tempMax, setTempMax] = useState(25);
 
   const fetchData = useCallback(async () => {
     try {
@@ -75,7 +132,7 @@ export default function DashboardPage({ onLogout }) {
         getGateways(),
       ]);
 
-      const allAlerts = m.filter(isAlert);
+      const allAlerts = m.filter((item) => isAlert(item, tempMin, tempMax));
 
       setMeasurements(m.reverse().map((d) => ({
         ...d,
@@ -90,13 +147,22 @@ export default function DashboardPage({ onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tempMin, tempMax]);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const handleDeleteAlert = async (id) => {
+    try {
+      await deleteAlert(id);
+      setAlerts((prev) => prev.filter((a) => a._id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -122,10 +188,8 @@ export default function DashboardPage({ onLogout }) {
             <p style={styles.bigTemp}>
               {latest ? formatTemp(latest.temperature) : "—"}
             </p>
-            <TempStatus temp={latest?.temperature} msg={latest?.msg} />
-            <p style={styles.cardSub}>
-              Optimální rozsah: {TEMP_MIN}°C – {TEMP_MAX}°C
-            </p>
+            <TempStatus temp={latest?.temperature} msg={latest?.msg} tempMin={tempMin} tempMax={tempMax} />
+            <p style={styles.cardSub}>Optimální rozsah: {tempMin}°C – {tempMax}°C</p>
           </div>
 
           <div style={styles.card}>
@@ -143,9 +207,7 @@ export default function DashboardPage({ onLogout }) {
                 </div>
               ))
             )}
-            <p style={styles.cardSub}>
-              Poslední záznam: {latest ? formatTime(latest.timestamp) : "—"}
-            </p>
+            <p style={styles.cardSub}>Poslední záznam: {latest ? formatTime(latest.timestamp) : "—"}</p>
           </div>
 
           <div style={styles.card}>
@@ -155,28 +217,36 @@ export default function DashboardPage({ onLogout }) {
               {alerts.length === 0 ? "Vše v pořádku" : "Vyžaduje pozornost"}
             </p>
             <p style={styles.cardSub}>
-              {alerts.length > 0
-                ? `Poslední: ${formatTime(alerts[0].timestamp)}`
-                : "Žádná upozornění"}
+              {alerts.length > 0 ? `Poslední: ${formatTime(alerts[0].timestamp)}` : "Žádná upozornění"}
             </p>
           </div>
         </div>
 
+        {/* Slider pro teplotní rozsah */}
+        <div style={styles.chartCard}>
+          <RangeSlider
+            tempMin={tempMin}
+            tempMax={tempMax}
+            onChange={(min, max) => { setTempMin(min); setTempMax(max); }}
+          />
+        </div>
+
+        {/* Graf teplot */}
         <div style={styles.chartCard}>
           <h2 style={styles.chartTitle}>Historie teplot</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={measurements} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} />
-              <YAxis domain={[15, 30]} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} unit="°C" />
+              <YAxis domain={[0, 40]} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} unit="°C" />
               <Tooltip
                 contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
                 labelStyle={{ color: "#f1f5f9" }}
                 itemStyle={{ color: "#f59e0b" }}
                 formatter={(value) => value !== null ? `${parseFloat(value).toFixed(1)}°C` : "—"}
               />
-              <ReferenceLine y={TEMP_MIN} stroke="#60a5fa" strokeDasharray="5 5" label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }} />
-              <ReferenceLine y={TEMP_MAX} stroke="#f87171" strokeDasharray="5 5" label={{ value: "Max", fill: "#f87171", fontSize: 11 }} />
+              <ReferenceLine y={tempMin} stroke="#60a5fa" strokeDasharray="5 5" label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }} />
+              <ReferenceLine y={tempMax} stroke="#f87171" strokeDasharray="5 5" label={{ value: "Max", fill: "#f87171", fontSize: 11 }} />
               <Line
                 type="monotone" dataKey="temperature" stroke="#f59e0b"
                 strokeWidth={2} dot={false} activeDot={{ r: 5, fill: "#f59e0b" }}
@@ -186,6 +256,7 @@ export default function DashboardPage({ onLogout }) {
           </ResponsiveContainer>
         </div>
 
+        {/* Historie upozornění */}
         {alerts.length > 0 && (
           <div style={styles.chartCard}>
             <h2 style={styles.chartTitle}>Historie upozornění</h2>
@@ -197,11 +268,11 @@ export default function DashboardPage({ onLogout }) {
                     background: a.msg && a.msg !== "OK" ? "#f87171" : "#f59e0b",
                     flexShrink: 0
                   }} />
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <p style={styles.alertText}>
                       {a.msg && a.msg !== "OK"
                         ? a.msg
-                        : a.temperature < TEMP_MIN
+                        : a.temperature < tempMin
                         ? "Teplota pod minimem"
                         : "Teplota nad maximem"}
                       {" — Gateway: "}{a.gatewayId}
@@ -209,6 +280,11 @@ export default function DashboardPage({ onLogout }) {
                     <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
                   </div>
                   <span style={styles.alertTemp}>{formatTemp(a.temperature)}</span>
+                  <button
+                    onClick={() => handleDeleteAlert(a._id)}
+                    style={styles.deleteBtn}
+                    title="Smazat upozornění"
+                  >✕</button>
                 </div>
               ))}
             </div>
@@ -247,5 +323,10 @@ const styles = {
   alertRow: { display: "flex", alignItems: "center", gap: "16px", background: "#0f172a", borderRadius: "8px", padding: "12px 16px", border: "1px solid #334155" },
   alertText: { color: "#f1f5f9", fontSize: "14px", fontWeight: "600", margin: 0 },
   alertTime: { color: "#64748b", fontSize: "12px", margin: "4px 0 0" },
-  alertTemp: { marginLeft: "auto", color: "#f59e0b", fontWeight: "700", fontSize: "16px" },
+  alertTemp: { color: "#f59e0b", fontWeight: "700", fontSize: "16px" },
+  deleteBtn: {
+    background: "transparent", border: "1px solid #475569", borderRadius: "6px",
+    color: "#94a3b8", cursor: "pointer", fontSize: "12px", padding: "4px 8px",
+    flexShrink: 0, transition: "all 0.2s",
+  },
 };
