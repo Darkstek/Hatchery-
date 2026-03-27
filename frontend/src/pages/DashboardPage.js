@@ -120,7 +120,7 @@ export default function DashboardPage({ onLogout }) {
         time: formatTimeShort(d.timestamp),
       })));
       setLatest(l);
-      setAlerts(allAlerts.reverse());
+      setAlerts(allAlerts);
       setGateways(g);
     } catch (err) {
       console.error(err);
