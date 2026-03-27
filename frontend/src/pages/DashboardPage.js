@@ -15,13 +15,13 @@ function formatTemp(temp) {
 
 function formatTime(timestamp) {
   const d = new Date(timestamp);
-  d.setHours(d.getHours());
+  d.setHours(d.getHours() -1);
   return d.toLocaleString("cs-CZ");
 }
 
 function formatTimeShort(timestamp) {
   const d = new Date(timestamp);
-  d.setHours(d.getHours());
+  d.setHours(d.getHours() -1);
   return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 }
 
