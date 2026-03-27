@@ -60,40 +60,27 @@ function RangeSlider({ tempMin, tempMax, onChange }) {
   const MIN = 0;
   const MAX = 40;
 
-  const handleMin = (e) => {
-    const val = Math.min(Number(e.target.value), tempMax - 1);
-    onChange(val, tempMax);
-  };
-
-  const handleMax = (e) => {
-    const val = Math.max(Number(e.target.value), tempMin + 1);
-    onChange(tempMin, val);
-  };
-
-  const leftPct = ((tempMin - MIN) / (MAX - MIN)) * 100;
-  const rightPct = ((tempMax - MIN) / (MAX - MIN)) * 100;
-
   return (
     <div style={sliderStyles.wrapper}>
       <div style={sliderStyles.header}>
         <span style={sliderStyles.label}>Teplotní rozsah</span>
         <span style={sliderStyles.values}>{tempMin}°C – {tempMax}°C</span>
       </div>
-      <div style={sliderStyles.track}>
-        <div style={{
-          ...sliderStyles.fill,
-          left: `${leftPct}%`,
-          width: `${rightPct - leftPct}%`,
-        }} />
-        <input type="range" min={MIN} max={MAX} value={tempMin}
-          onChange={handleMin} style={sliderStyles.input} />
-        <input type="range" min={MIN} max={MAX} value={tempMax}
-          onChange={handleMax} style={sliderStyles.input} />
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+        <span style={sliderStyles.tick}>Min: {tempMin}°C</span>
+        <input
+          type="range" min={MIN} max={tempMax - 1} value={tempMin}
+          onChange={(e) => onChange(Number(e.target.value), tempMax)}
+          style={{ flex: 1, accentColor: "#60a5fa", cursor: "pointer" }}
+        />
       </div>
-      <div style={sliderStyles.ticks}>
-        <span style={sliderStyles.tick}>{MIN}°C</span>
-        <span style={sliderStyles.tick}>20°C</span>
-        <span style={sliderStyles.tick}>40°C</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <span style={sliderStyles.tick}>Max: {tempMax}°C</span>
+        <input
+          type="range" min={tempMin + 1} max={MAX} value={tempMax}
+          onChange={(e) => onChange(tempMin, Number(e.target.value))}
+          style={{ flex: 1, accentColor: "#f87171", cursor: "pointer" }}
+        />
       </div>
     </div>
   );
