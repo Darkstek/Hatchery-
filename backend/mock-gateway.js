@@ -4,7 +4,7 @@
 
 const fetch = require("node-fetch");
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://hatchery-l9qw.onrender.com";
 const API_KEY = "hatchery-gw-key-2026";
 const GATEWAY_ID = "gateway-01";
 
