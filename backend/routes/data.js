@@ -97,14 +97,18 @@ router.get("/alerts", jwtAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/data/:id — smaže jeden záznam (chráněno JWT)
-router.delete("/:id", jwtAuth, async (req, res) => {
+// PATCH /api/data/:id/dismiss — označí alert jako vyřešený (chráněno JWT)
+router.patch("/:id/dismiss", jwtAuth, async (req, res) => {
   try {
-    const deleted = await Measurement.findByIdAndDelete(req.params.id);
-    if (!deleted) {
+    const updated = await Measurement.findByIdAndUpdate(
+      req.params.id,
+      { dismissed: true },
+      { new: true }
+    );
+    if (!updated) {
       return res.status(404).json({ error: "Záznam nenalezen" });
     }
-    res.json({ message: "Záznam smazán" });
+    res.json({ message: "Alert vyřešen" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Chyba serveru" });

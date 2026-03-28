@@ -52,8 +52,8 @@ export const getGateways = async () => {
   return res.data;
 };
 
-export const deleteAlert = async (id) => {
-  const res = await api.delete(`/api/data/${id}`);
+export const dismissAlert = async (id) => {
+  const res = await api.patch(`/api/data/${id}/dismiss`);
   return res.data;
 };
 

@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts";
-import { getMeasurements, getLatestMeasurement, getGateways, deleteAlert } from "../services/api";
+import { getMeasurements, getLatestMeasurement, getGateways, dismissAlert } from "../services/api";
 
 function formatTemp(temp) {
   if (temp === null || temp === undefined) return "—";
@@ -112,7 +112,7 @@ export default function DashboardPage({ onLogout }) {
         getGateways(),
       ]);
 
-      const allAlerts = m.filter((item) => isAlert(item, tempMin, tempMax));
+      const allAlerts = m.filter((item) => isAlert(item, tempMin, tempMax) && !item.dismissed);
 
       setMeasurements(m.reverse().map((d) => ({
         ...d,
@@ -120,7 +120,7 @@ export default function DashboardPage({ onLogout }) {
         time: formatTimeShort(d.timestamp),
       })));
       setLatest(l);
-      setAlerts(allAlerts);
+      setAlerts(allAlerts.reverse());
       setGateways(g);
     } catch (err) {
       console.error(err);
@@ -137,7 +137,7 @@ export default function DashboardPage({ onLogout }) {
 
   const handleDeleteAlert = async (id) => {
     try {
-      await deleteAlert(id);
+      await dismissAlert(id);
       setAlerts((prev) => prev.filter((a) => a._id !== id));
       setConfirmDelete(null);
     } catch (err) {
