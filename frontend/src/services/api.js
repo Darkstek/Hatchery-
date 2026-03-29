@@ -6,7 +6,6 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-// Automaticky přidej JWT token ke každému requestu
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -15,7 +14,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Pokud token expiruje, odhlás uživatele
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -49,11 +47,6 @@ export const getAlerts = async () => {
 
 export const getGateways = async () => {
   const res = await api.get("/api/gateway");
-  return res.data;
-};
-
-export const getAlerts = async () => {
-  const res = await api.get("/api/data/alerts");
   return res.data;
 };
 
