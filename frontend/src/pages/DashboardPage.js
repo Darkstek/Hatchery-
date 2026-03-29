@@ -136,6 +136,15 @@ export default function DashboardPage({ onLogout }) {
     }
   };
 
+    const handleDismissAll = async () => {
+  try {
+    await Promise.all(alerts.map((a) => dismissAlert(a._id)));
+    setAlerts([]);
+  } catch (err) {
+    console.error(err);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     onLogout();
@@ -264,7 +273,13 @@ export default function DashboardPage({ onLogout }) {
 
         {alerts.length > 0 && (
           <div style={styles.chartCard}>
-            <h2 style={styles.chartTitle}>Historie upozornění</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+              <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie upozornění</h2>
+                <button
+                  onClick={handleDismissAll}
+                  style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "8px 16px", color: "#94a3b8", cursor: "pointer", fontSize: "13px" }}
+                >Smazat vše</button>
+              </div>
             <div style={styles.alertList}>
               {alerts.slice(0, 10).map((a) => (
                 <div key={a._id} style={styles.alertRow}>
