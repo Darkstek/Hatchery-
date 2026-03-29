@@ -95,6 +95,7 @@ export default function DashboardPage({ onLogout }) {
   const [tempMin, setTempMin] = useState(() => Number(localStorage.getItem("tempMin")) || 20);
   const [tempMax, setTempMax] = useState(() => Number(localStorage.getItem("tempMax")) || 25);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmDismissAll, setConfirmDismissAll] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -136,12 +137,13 @@ export default function DashboardPage({ onLogout }) {
     }
   };
 
-    const handleDismissAll = async () => {
-  try {
-    await Promise.all(alerts.map((a) => dismissAlert(a._id)));
-    setAlerts([]);
-  } catch (err) {
-    console.error(err);
+  const handleDismissAll = async () => {
+    try {
+      await Promise.all(alerts.map((a) => dismissAlert(a._id)));
+      setAlerts([]);
+      setConfirmDismissAll(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -155,7 +157,7 @@ export default function DashboardPage({ onLogout }) {
   return (
     <div style={styles.container}>
 
-      {/* Potvrzovací modal */}
+      {/* Potvrzovací modal - smazat jeden */}
       {confirmDelete && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
@@ -180,6 +182,36 @@ export default function DashboardPage({ onLogout }) {
                 onClick={() => handleDeleteAlert(confirmDelete)}
                 style={{ background: "#ef4444", border: "none", borderRadius: "8px", padding: "10px 24px", color: "#fff", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}
               >Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Potvrzovací modal - smazat vše */}
+      {confirmDismissAll && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
+        }}>
+          <div style={{
+            background: "#1e293b", borderRadius: "12px", padding: "32px",
+            border: "1px solid #334155", maxWidth: "360px", width: "90%", textAlign: "center"
+          }}>
+            <p style={{ color: "#f1f5f9", fontSize: "16px", fontWeight: 600, margin: "0 0 8px" }}>
+              Smazat všechna upozornění?
+            </p>
+            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}>
+              Tato akce je nevratná.
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={() => setConfirmDismissAll(false)}
+                style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "10px 24px", color: "#94a3b8", cursor: "pointer", fontSize: "14px" }}
+              >Zrušit</button>
+              <button
+                onClick={handleDismissAll}
+                style={{ background: "#ef4444", border: "none", borderRadius: "8px", padding: "10px 24px", color: "#fff", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}
+              >Smazat vše</button>
             </div>
           </div>
         </div>
@@ -236,14 +268,14 @@ export default function DashboardPage({ onLogout }) {
 
         <div style={styles.chartCard}>
           <RangeSlider
-              tempMin={tempMin}
-              tempMax={tempMax}
-              onChange={(min, max) => { 
-              setTempMin(min); 
-              setTempMax(max); 
+            tempMin={tempMin}
+            tempMax={tempMax}
+            onChange={(min, max) => {
+              setTempMin(min);
+              setTempMax(max);
               localStorage.setItem("tempMin", min);
               localStorage.setItem("tempMax", max);
-              }}
+            }}
           />
         </div>
 
@@ -275,11 +307,11 @@ export default function DashboardPage({ onLogout }) {
           <div style={styles.chartCard}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
               <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie upozornění</h2>
-                <button
-                  onClick={handleDismissAll}
-                  style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "8px 16px", color: "#94a3b8", cursor: "pointer", fontSize: "13px" }}
-                >Smazat vše</button>
-              </div>
+              <button
+                onClick={() => setConfirmDismissAll(true)}
+                style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "8px 16px", color: "#94a3b8", cursor: "pointer", fontSize: "13px" }}
+              >Smazat vše</button>
+            </div>
             <div style={styles.alertList}>
               {alerts.slice(0, 10).map((a) => (
                 <div key={a._id} style={styles.alertRow}>
