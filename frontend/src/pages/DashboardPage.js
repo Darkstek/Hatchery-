@@ -30,14 +30,6 @@ function TempStatus({ temp, msg, tempMin, tempMax }) {
   return <span style={{ color: "#4ade80", fontWeight: 700 }}>OPTIMÁLNÍ</span>;
 }
 
-function isAlert(item, tempMin, tempMax) {
-  if (!item) return false;
-  if (item.msg && item.msg !== "OK") return true;
-  if (item.temperature !== null && item.temperature < tempMin) return true;
-  if (item.temperature !== null && item.temperature > tempMax) return true;
-  return false;
-}
-
 function LoadingSpinner() {
   return (
     <div style={{
