@@ -100,8 +100,8 @@ export default function DashboardPage({ onLogout }) {
   const [alerts, setAlerts] = useState([]);
   const [gateways, setGateways] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tempMin, setTempMin] = useState(20);
-  const [tempMax, setTempMax] = useState(25);
+  const [tempMin, setTempMin] = useState(() => Number(localStorage.getItem("tempMin")) || 20);
+  const [tempMax, setTempMax] = useState(() => Number(localStorage.getItem("tempMax")) || 25);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const fetchData = useCallback(async () => {
@@ -235,9 +235,14 @@ export default function DashboardPage({ onLogout }) {
 
         <div style={styles.chartCard}>
           <RangeSlider
-            tempMin={tempMin}
-            tempMax={tempMax}
-            onChange={(min, max) => { setTempMin(min); setTempMax(max); }}
+              tempMin={tempMin}
+              tempMax={tempMax}
+              onChange={(min, max) => { 
+              setTempMin(min); 
+              setTempMax(max); 
+              localStorage.setItem("tempMin", min);
+              localStorage.setItem("tempMax", max);
+              }}
           />
         </div>
 
