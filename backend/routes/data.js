@@ -16,14 +16,33 @@ router.post("/", apiKeyAuth, async (req, res) => {
       return res.status(400).json({ error: "Prázdný batch" });
     }
 
-    // Převod Pavlova formátu na náš model
-    const docs = batch.map((item) => ({
-      gatewayId,
-      nodeId: item.id,
-      temperature: item.temp ?? null,
-      msg: item.msg || "OK",
-      timestamp: item.time ? new Date(item.time) : new Date(),
-    }));
+    // Zjistíme předchozí stav — byl poslední záznam alert?
+    const lastRecord = await Measurement.findOne({ gatewayId }).sort({ timestamp: -1 });
+    let prevWasAlert = lastRecord ? lastRecord.isAlert : false;
+
+    // Převod Pavlova formátu na náš model + detekce změny stavu
+    const docs = batch.map((item) => {
+      const temp = item.temp ?? null;
+      const msg = item.msg || "OK";
+
+      // Zjistíme jestli je tento záznam problémový
+      const currentIsAlert = msg !== "OK" || temp === null;
+
+      // Alert zapíšeme jen při přechodu z OK do problému
+      const shouldAlert = currentIsAlert && !prevWasAlert;
+
+      // Aktualizujeme předchozí stav pro další položku v batchi
+      prevWasAlert = currentIsAlert;
+
+      return {
+        gatewayId,
+        nodeId: item.id,
+        temperature: temp,
+        msg,
+        isAlert: shouldAlert,
+        timestamp: item.time ? new Date(item.time) : new Date(),
+      };
+    });
 
     await Measurement.insertMany(docs);
 
@@ -83,10 +102,10 @@ router.get("/latest", jwtAuth, async (req, res) => {
   }
 });
 
-// GET /api/data/alerts — záznamy kde msg není OK (chráněno JWT)
+// GET /api/data/alerts — záznamy kde nastala změna stavu (chráněno JWT)
 router.get("/alerts", jwtAuth, async (req, res) => {
   try {
-    const alerts = await Measurement.find({ msg: { $ne: "OK" } })
+    const alerts = await Measurement.find({ isAlert: true, dismissed: { $ne: true } })
       .sort({ timestamp: -1 })
       .limit(50);
 

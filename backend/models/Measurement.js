@@ -20,6 +20,10 @@ const measurementSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isAlert: {
+    type: Boolean,
+    default: false,
+  },
   timestamp: {
     type: Date,
     default: Date.now,

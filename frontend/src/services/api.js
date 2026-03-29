@@ -52,6 +52,11 @@ export const getGateways = async () => {
   return res.data;
 };
 
+export const getAlerts = async () => {
+  const res = await api.get("/api/data/alerts");
+  return res.data;
+};
+
 export const dismissAlert = async (id) => {
   const res = await api.patch(`/api/data/${id}/dismiss`);
   return res.data;

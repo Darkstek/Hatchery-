@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts";
-import { getMeasurements, getLatestMeasurement, getGateways, dismissAlert } from "../services/api";
+import { getMeasurements, getLatestMeasurement, getGateways, getAlerts, dismissAlert } from "../services/api";
 
 function formatTemp(temp) {
   if (temp === null || temp === undefined) return "—";
@@ -106,13 +106,12 @@ export default function DashboardPage({ onLogout }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [m, l, g] = await Promise.all([
+      const [m, l, g, a] = await Promise.all([
         getMeasurements(50),
         getLatestMeasurement(),
         getGateways(),
+        getAlerts(),
       ]);
-
-      const allAlerts = m.filter((item) => isAlert(item, tempMin, tempMax) && !item.dismissed);
 
       setMeasurements(m.reverse().map((d) => ({
         ...d,
@@ -120,14 +119,14 @@ export default function DashboardPage({ onLogout }) {
         time: formatTimeShort(d.timestamp),
       })));
       setLatest(l);
-      setAlerts(allAlerts.reverse());
+      setAlerts(a);
       setGateways(g);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [tempMin, tempMax]);
+  }, []);
 
   useEffect(() => {
     fetchData();
