@@ -105,7 +105,7 @@ router.get("/latest", jwtAuth, async (req, res) => {
 // GET /api/data/alerts — záznamy kde nastala změna stavu (chráněno JWT)
 router.get("/alerts", jwtAuth, async (req, res) => {
   try {
-    const alerts = await Measurement.find({ isAlert: true, dismissed: { $ne: true } })
+    const alerts = await Measurement.find({ isAlert: true, dismissed: false })
       .sort({ timestamp: -1 })
       .limit(50);
 
