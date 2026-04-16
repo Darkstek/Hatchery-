@@ -1,4 +1,10 @@
 import axios from "axios";
+import {
+  getMeasurements,
+  getLatestMeasurement,
+  getGateways,
+  dismissAlert,
+} from "../services/api";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
@@ -22,7 +28,7 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export const login = async (email, password) => {

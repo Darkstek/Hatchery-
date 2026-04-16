@@ -6,7 +6,6 @@ const apiKeyAuth = require("../middleware/apiKeyAuth");
 const jwtAuth = require("../middleware/jwtAuth");
 
 // POST /api/data — gateway pošle batch měření (chráněno API klíčem)
-// Přijímá pole objektů: [{ id, temp, time, msg }, ...]
 router.post("/", apiKeyAuth, async (req, res) => {
   try {
     const gatewayId = req.headers["x-gateway-id"] || "gateway-01";
@@ -16,41 +15,19 @@ router.post("/", apiKeyAuth, async (req, res) => {
       return res.status(400).json({ error: "Prázdný batch" });
     }
 
-    // Zjistíme předchozí stav — byl poslední záznam alert?
-    const lastRecord = await Measurement.findOne({ gatewayId }).sort({ timestamp: -1 });
-    let prevWasAlert = lastRecord ? lastRecord.isAlert : false;
-
-    // Převod Pavlova formátu na náš model + detekce změny stavu
-    const docs = batch.map((item) => {
-      const temp = item.temp ?? null;
-      const msg = item.msg || "OK";
-
-      // Zjistíme jestli je tento záznam problémový
-      const currentIsAlert = msg !== "OK" || temp === null;
-
-      // Alert zapíšeme jen při přechodu z OK do problému
-      const shouldAlert = currentIsAlert && !prevWasAlert;
-
-      // Aktualizujeme předchozí stav pro další položku v batchi
-      prevWasAlert = currentIsAlert;
-
-      return {
-        gatewayId,
-        nodeId: item.id,
-        temperature: temp,
-        msg,
-        isAlert: shouldAlert,
-        timestamp: item.time ? new Date(item.time) : new Date(),
-      };
-    });
+    const docs = batch.map((item) => ({
+      gatewayId,
+      nodeId: item.id,
+      temperature: item.temp ?? null,
+      msg: item.msg || "OK",
+      isAlert: false,
+      dismissed: false,
+      timestamp: item.time ? new Date(item.time) : new Date(),
+    }));
 
     await Measurement.insertMany(docs);
 
-    // Aktualizace lastSeen u gateway
-    await Gateway.findOneAndUpdate(
-      { gatewayId },
-      { lastSeen: new Date() }
-    );
+    await Gateway.findOneAndUpdate({ gatewayId }, { lastSeen: new Date() });
 
     res.status(201).json({ message: "Data uložena", count: docs.length });
   } catch (err) {
@@ -83,7 +60,7 @@ router.get("/", jwtAuth, async (req, res) => {
   }
 });
 
-// GET /api/data/latest — poslední měření pro každou gateway (chráněno JWT)
+// GET /api/data/latest — poslední měření (chráněno JWT)
 router.get("/latest", jwtAuth, async (req, res) => {
   try {
     const { gatewayId } = req.query;
@@ -102,10 +79,13 @@ router.get("/latest", jwtAuth, async (req, res) => {
   }
 });
 
-// GET /api/data/alerts — záznamy kde nastala změna stavu (chráněno JWT)
+// GET /api/data/alerts — záznamy kde isAlert true (chráněno JWT)
 router.get("/alerts", jwtAuth, async (req, res) => {
   try {
-    const alerts = await Measurement.find({ isAlert: true, dismissed: { $ne: true } })
+    const alerts = await Measurement.find({
+      isAlert: true,
+      dismissed: { $ne: true },
+    })
       .sort({ timestamp: -1 })
       .limit(50);
 
@@ -116,13 +96,13 @@ router.get("/alerts", jwtAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/data/:id/dismiss — označí alert jako vyřešený (chráněno JWT)
+// PATCH /api/data/:id/dismiss — označí záznam jako vyřešený (chráněno JWT)
 router.patch("/:id/dismiss", jwtAuth, async (req, res) => {
   try {
     const updated = await Measurement.findByIdAndUpdate(
       req.params.id,
       { dismissed: true },
-      { new: true }
+      { new: true },
     );
     if (!updated) {
       return res.status(404).json({ error: "Záznam nenalezen" });
