@@ -1,10 +1,4 @@
 import axios from "axios";
-import {
-  getMeasurements,
-  getLatestMeasurement,
-  getGateways,
-  dismissAlert,
-} from "../services/api";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
