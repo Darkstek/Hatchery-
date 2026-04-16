@@ -16,4 +16,4 @@ IoT: HARDWARIO Core Module, Node-RED gateway on Raspberry Pi
 Architecture
 IoT Node → Gateway (Node-RED / RPi) → REST API (HTTPS) → Cloud Backend → React Dashboard
 Live Demo
-hatchery.vercel.app
+[hatchery.vercel.app](https://hatchery-five.vercel.app)
