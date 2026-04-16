@@ -13,7 +13,9 @@ import {
   getMeasurements,
   getLatestMeasurement,
   getGateways,
+  getAlerts,
   dismissAlert,
+  updateGatewaySettings,
 } from "../services/api";
 
 function formatTemp(temp) {
@@ -22,17 +24,15 @@ function formatTemp(temp) {
 }
 
 function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleString("cs-CZ", {
-    timeZone: "Europe/Prague",
-  });
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() - 1);
+  return d.toLocaleString("cs-CZ");
 }
 
 function formatTimeShort(timestamp) {
-  return new Date(timestamp).toLocaleTimeString("cs-CZ", {
-    timeZone: "Europe/Prague",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() - 1);
+  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 }
 
 function TempStatus({ temp, msg, tempMin, tempMax }) {
@@ -164,19 +164,12 @@ export default function DashboardPage({ onLogout }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [m, l, g] = await Promise.all([
+      const [m, l, g, a] = await Promise.all([
         getMeasurements(50),
         getLatestMeasurement(),
         getGateways(),
+        getAlerts(),
       ]);
-
-      const allAlerts = m.filter(
-        (item) =>
-          !item.dismissed &&
-          ((item.msg && item.msg !== "OK") ||
-            (item.temperature !== null && item.temperature < tempMin) ||
-            (item.temperature !== null && item.temperature > tempMax)),
-      );
 
       setMeasurements(
         m.reverse().map((d) => ({
@@ -189,14 +182,14 @@ export default function DashboardPage({ onLogout }) {
         })),
       );
       setLatest(l);
-      setAlerts(allAlerts);
+      setAlerts(a);
       setGateways(g);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [tempMin, tempMax]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -466,6 +459,9 @@ export default function DashboardPage({ onLogout }) {
               setTempMax(max);
               localStorage.setItem("tempMin", min);
               localStorage.setItem("tempMax", max);
+              updateGatewaySettings("gateway-01", min, max).catch(
+                console.error,
+              );
             }}
           />
         </div>
