@@ -15,19 +15,39 @@ router.post("/", apiKeyAuth, async (req, res) => {
       return res.status(400).json({ error: "Prázdný batch" });
     }
 
-    const docs = batch.map((item) => ({
-      gatewayId,
-      nodeId: item.id,
-      temperature: item.temp ?? null,
-      msg: item.msg || "OK",
-      isAlert: false,
-      dismissed: false,
-      timestamp: item.time ? new Date(item.time) : new Date(),
-    }));
+    // Načteme gateway s rozsahem teplot a předchozím stavem
+    const gateway = await Gateway.findOne({ gatewayId });
+    const tempMin = gateway?.tempMin ?? 20;
+    const tempMax = gateway?.tempMax ?? 25;
+    let prevWasAlert = gateway?.prevWasAlert ?? false;
+
+    const docs = batch.map((item) => {
+      const temp = item.temp ?? null;
+      const msg = item.msg || "OK";
+
+      const currentIsAlert =
+        msg !== "OK" || temp === null || temp < tempMin || temp > tempMax;
+
+      const shouldAlert = currentIsAlert && !prevWasAlert;
+      prevWasAlert = currentIsAlert;
+
+      return {
+        gatewayId,
+        nodeId: item.id,
+        temperature: temp,
+        msg,
+        isAlert: shouldAlert,
+        dismissed: false,
+        timestamp: item.time ? new Date(item.time) : new Date(),
+      };
+    });
 
     await Measurement.insertMany(docs);
 
-    await Gateway.findOneAndUpdate({ gatewayId }, { lastSeen: new Date() });
+    await Gateway.findOneAndUpdate(
+      { gatewayId },
+      { lastSeen: new Date(), prevWasAlert },
+    );
 
     res.status(201).json({ message: "Data uložena", count: docs.length });
   } catch (err) {
