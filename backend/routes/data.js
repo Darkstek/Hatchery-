@@ -31,12 +31,22 @@ router.post("/", apiKeyAuth, async (req, res) => {
       const shouldAlert = currentIsAlert && !prevWasAlert;
       prevWasAlert = currentIsAlert;
 
+      // Určíme důvod alertu
+      let alertReason = null;
+      if (shouldAlert) {
+        if (msg !== "OK") alertReason = msg;
+        else if (temp === null) alertReason = "Senzor offline";
+        else if (temp < tempMin) alertReason = "Teplota pod minimem";
+        else if (temp > tempMax) alertReason = "Teplota nad maximem";
+      }
+
       return {
         gatewayId,
         nodeId: item.id,
         temperature: temp,
         msg,
         isAlert: shouldAlert,
+        alertReason,
         dismissed: false,
         timestamp: item.time ? new Date(item.time) : new Date(),
       };

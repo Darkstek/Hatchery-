@@ -565,11 +565,12 @@ export default function DashboardPage({ onLogout }) {
                   />
                   <div style={{ flex: 1 }}>
                     <p style={styles.alertText}>
-                      {a.msg && a.msg !== "OK"
-                        ? a.msg
-                        : a.temperature < tempMin
-                          ? "Teplota pod minimem"
-                          : "Teplota nad maximem"}
+                      {a.alertReason ||
+                        (a.msg && a.msg !== "OK"
+                          ? a.msg
+                          : a.temperature < tempMin
+                            ? "Teplota pod minimem"
+                            : "Teplota nad maximem")}
                       {" — Gateway: "}
                       {a.gatewayId}
                     </p>

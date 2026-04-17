@@ -24,6 +24,10 @@ const measurementSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  alertReason: {
+    type: String,
+    default: null,
+  },
   timestamp: {
     type: Date,
     default: Date.now,
