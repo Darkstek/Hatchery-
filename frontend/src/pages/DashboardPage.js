@@ -24,14 +24,15 @@ function formatTemp(temp) {
 }
 
 function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleString("cs-CZ");
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() - 2);
+  return d.toLocaleString("cs-CZ");
 }
 
 function formatTimeShort(timestamp) {
-  return new Date(timestamp).toLocaleTimeString("cs-CZ", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const d = new Date(timestamp);
+  d.setHours(d.getHours() - 2);
+  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 }
 
 function TempStatus({ temp, msg, tempMin, tempMax }) {
