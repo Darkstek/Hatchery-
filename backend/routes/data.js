@@ -42,7 +42,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
 
       return {
         gatewayId,
-        nodeId: item.id,
+        nodeId: item.nodeId || String(item.id),
         temperature: temp,
         msg,
         isAlert: shouldAlert,
