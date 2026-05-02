@@ -17,3 +17,6 @@ Architecture
 IoT Node → Gateway (Node-RED / RPi) → REST API (HTTPS) → Cloud Backend → React Dashboard
 Live Demo
 [hatchery.vercel.app](https://hatchery-five.vercel.app)
+admin acc
+admin@hatchery.cz
+admin123
