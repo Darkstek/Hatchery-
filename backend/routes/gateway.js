@@ -78,4 +78,33 @@ router.patch("/settings", jwtAuth, async (req, res) => {
   }
 });
 
+// GET /api/gateway/settings — načte teplotní rozsah pro konkrétní gateway (chráněno JWT)
+router.get("/settings", jwtAuth, async (req, res) => {
+  try {
+    const { gatewayId } = req.query;
+
+    if (!gatewayId) {
+      return res.status(400).json({ error: "Chybí gatewayId v dotazu (query)" });
+    }
+
+    const gateway = await Gateway.findOne({ gatewayId });
+
+    if (!gateway) {
+      return res.status(404).json({ error: "Gateway nenalezena" });
+    }
+
+    // Vrátíme aktuální nastavení
+    res.json({
+      gatewayId: gateway.gatewayId,
+      tempMin: gateway.tempMin,
+      tempMax: gateway.tempMax,
+      location: gateway.location,
+      name: gateway.name
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Chyba serveru při načítání nastavení" });
+  }
+});
+
 module.exports = router;
