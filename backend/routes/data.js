@@ -25,19 +25,28 @@ router.post("/", apiKeyAuth, async (req, res) => {
       const temp = item.temp ?? null;
       const msg = item.msg || "OK";
 
-      const currentIsAlert =
-        msg !== "OK" || temp === null || temp < tempMin || temp > tempMax;
+      // 1. Definujeme aktuální stav (problém vs. pohoda)
+      const isCurrentlyInError = msg !== "OK" || temp === null || temp < tempMin || temp > tempMax;
 
-      const shouldAlert = currentIsAlert && !prevWasAlert;
-      prevWasAlert = currentIsAlert;
+      // 2. LOGIKA ZAZNAMENÁVÁNÍ ZMĚN (Stavový automat)
+      // Alert chceme vytvořit, pokud se stav změnil oproti předchozímu měření
+      const shouldAlert = isCurrentlyInError !== prevWasAlert;
 
-      // Určíme důvod alertu
+      // Aktualizujeme stav pro další prvek v batchi (pokud jich je víc)
+      prevWasAlert = isCurrentlyInError;
+
       let alertReason = null;
       if (shouldAlert) {
-        if (msg !== "OK") alertReason = msg;
-        else if (temp === null) alertReason = "Senzor offline";
-        else if (temp < tempMin) alertReason = "Teplota pod minimem";
-        else if (temp > tempMax) alertReason = "Teplota nad maximem";
+        if (isCurrentlyInError) {
+          // Teplota právě VYŠLA z rozmezí (nebo je jiný error)
+          if (msg !== "OK") alertReason = msg;
+          else if (temp === null) alertReason = "Senzor offline";
+          else if (temp < tempMin) alertReason = "Teplota pod minimem";
+          else if (temp > tempMax) alertReason = "Teplota nad maximem";
+        } else {
+          // Teplota se právě VRÁTILA do rozmezí
+          alertReason = "Teplota se vrátila do normy";
+        }
       }
 
       return {
@@ -45,7 +54,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
         nodeId: item.nodeId || String(item.id),
         temperature: temp,
         msg,
-        isAlert: shouldAlert,
+        isAlert: shouldAlert, // Teď bude true při každé změně stavu
         alertReason,
         dismissed: false,
         timestamp: item.time ? new Date(item.time) : new Date(),
