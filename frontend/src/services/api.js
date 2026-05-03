@@ -66,4 +66,10 @@ export const updateGatewaySettings = async (gatewayId, tempMin, tempMax) => {
   return res.data;
 };
 
+// Přidej funkci pro získání nastavení brány
+export const getGatewaySettings = async (gatewayId) => {
+  const res = await api.get(`/api/gateway/settings?gatewayId=${gatewayId}`);
+  return res.data;
+};
+
 export default api;

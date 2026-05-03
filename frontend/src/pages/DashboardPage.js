@@ -16,6 +16,7 @@ import {
   getAlerts,
   dismissAlert,
   updateGatewaySettings,
+  getGatewaySettings,
 } from "../services/api";
 
 function formatTemp(temp) {
@@ -153,39 +154,41 @@ export default function DashboardPage({ onLogout }) {
   const [alerts, setAlerts] = useState([]);
   const [gateways, setGateways] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tempMin, setTempMin] = useState(
-    () => Number(localStorage.getItem("tempMin")) || 20,
-  );
-  const [tempMax, setTempMax] = useState(
-    () => Number(localStorage.getItem("tempMax")) || 25,
-  );
+  /*     const [tempMin, setTempMin] = useState(
+        () => Number(localStorage.getItem("tempMin")) || 20,
+      );
+      const [tempMax, setTempMax] = useState(
+        () => Number(localStorage.getItem("tempMax")) || 25,
+      ); */
+  const [tempMin, setTempMin] = useState(20); // Základní fallback
+  const [tempMax, setTempMax] = useState(25); // Základní fallback
+
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDismissAll, setConfirmDismissAll] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [m, l, g, a] = await Promise.all([
+      const [m, l, g, a, settings] = await Promise.all([
         getMeasurements(50),
         getLatestMeasurement(),
         getGateways(),
         getAlerts(),
+        getGatewaySettings("gateway-01"), // <--- Tady načteme reálné limity z DB
       ]);
 
-      setMeasurements(
-        m.reverse().map((d) => ({
-          ...d,
-          temperature:
-            d.temperature !== null
-              ? parseFloat(parseFloat(d.temperature).toFixed(1))
-              : null,
-          time: formatTimeShort(d.timestamp),
-        })),
-      );
+      // Pokud se nastavení v DB liší od toho, co máme v state, aktualizujeme ho
+      if (settings) {
+        setTempMin(settings.tempMin);
+        setTempMax(settings.tempMax);
+      }
+
+      // ... zbytek vaší logiky pro setMeasurements, setLatest, atd.
+      setMeasurements(m.reverse().map(d => ({ ...d, time: formatTimeShort(d.timestamp) })));
       setLatest(l);
       setAlerts(a);
       setGateways(g);
     } catch (err) {
-      console.error(err);
+      console.error("Chyba při synchronizaci s DB:", err);
     } finally {
       setLoading(false);
     }

@@ -92,7 +92,7 @@ router.get("/settings", jwtAuth, async (req, res) => {
     if (!gateway) {
       return res.status(404).json({ error: "Gateway nenalezena" });
     }
-
+ 
     // Vrátíme aktuální nastavení
     res.json({
       gatewayId: gateway.gatewayId,
