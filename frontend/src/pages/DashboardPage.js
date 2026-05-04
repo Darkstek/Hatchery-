@@ -24,15 +24,31 @@ function formatTemp(temp) {
   return parseFloat(temp).toFixed(1) + "°C";
 }
 
-function formatTime(timestamp) {
+//blbne čas 
+/* function formatTime(timestamp) {
   const d = new Date(timestamp);
   d.setHours(d.getHours() - 2);
   return d.toLocaleString("cs-CZ");
+} */
+
+  // Opravená funkce pro formátování času bez posunu o 2 hodiny
+  function formatTime(timestamp) {
+  if (!timestamp) return "—";
+  const d = new Date(timestamp);
+  return d.toLocaleString("cs-CZ"); 
 }
 
-function formatTimeShort(timestamp) {
+// blbne čas 
+/* function formatTimeShort(timestamp) {
   const d = new Date(timestamp);
   d.setHours(d.getHours() - 2);
+  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+} */
+
+  // Opravená funkce pro formátování času bez posunu o 2 hodiny
+  function formatTimeShort(timestamp) {
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
   return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 }
 
