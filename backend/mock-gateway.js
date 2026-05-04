@@ -38,8 +38,10 @@ function generateBatch(count = 3) {
 
     const offline = Math.random() < 0.05;
 
+    // OPRAVA: Posíláme čistý ISO řetězec, který končí na 'Z' (UTC)
+    // To zajistí, že frontend i backend budou mít stejný časový základ.
     const time = new Date(now.getTime() - (count - i) * 10000);
-    const timeStr = time.toISOString().replace("T", " ").substring(0, 19);
+    const timeStr = time.toISOString(); 
 
     batch.push({
       id: nodeIdCounter++,

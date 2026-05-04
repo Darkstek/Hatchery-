@@ -49,6 +49,11 @@ router.post("/", apiKeyAuth, async (req, res) => {
         }
       }
 
+      // OPRAVA ČASU: 
+      // Pokud item.time obsahuje řetězec, JavaScript ho musí interpretovat jako UTC.
+      // Pokud item.time končí na 'Z' nebo je v ISO formátu, new Date() ho převede správně.
+      let timestamp = item.time ? new Date(item.time) : new Date();
+
       return {
         gatewayId,
         nodeId: item.nodeId || String(item.id),
@@ -57,7 +62,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
         isAlert: shouldAlert, // Teď bude true při každé změně stavu
         alertReason,
         dismissed: false,
-        timestamp: item.time ? new Date(item.time) : new Date(),
+        timestamp: timestamp,
       };
     });
 
