@@ -32,24 +32,37 @@ function formatTemp(temp) {
 } */
 
   // Opravená funkce pro formátování času bez posunu o 2 hodiny
-  function formatTime(timestamp) {
+/*   function formatTime(timestamp) {
   if (!timestamp) return "—";
   const d = new Date(timestamp);
   return d.toLocaleString("cs-CZ"); 
-}
-
-// blbne čas 
-/* function formatTimeShort(timestamp) {
-  const d = new Date(timestamp);
-  d.setHours(d.getHours() - 2);
-  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
 } */
 
+  function formatTime(timestamp) {
+  if (!timestamp) return "—";
+  const d = new Date(timestamp);
+  // Použijeme toISOString a trochu ho upravíme pro čitelnost, 
+  // nebo použijeme lokální formát s vynuceným UTC
+  return d.toLocaleString("cs-CZ", { timeZone: "UTC" }); 
+}
+
+
   // Opravená funkce pro formátování času bez posunu o 2 hodiny
-  function formatTimeShort(timestamp) {
+/*   function formatTimeShort(timestamp) {
   if (!timestamp) return "";
   const d = new Date(timestamp);
   return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+} */
+
+  function formatTimeShort(timestamp) {
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
+  // Vynutíme zobrazení v časovém pásmu UTC
+  return d.toLocaleTimeString("cs-CZ", { 
+    hour: "2-digit", 
+    minute: "2-digit", 
+    timeZone: "UTC" 
+  });
 }
 
 function TempStatus({ temp, msg, tempMin, tempMax }) {
