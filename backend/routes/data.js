@@ -66,13 +66,10 @@ router.post("/", apiKeyAuth, async (req, res) => {
 
     await Measurement.insertMany(docs);
 
-    // Aktualizace brány se stejnou časovou korekcí
-    const lastSeenCorrected = new Date(new Date().getTime() - 2 * 60 * 60 * 1000);
-
     // Aktualizace brány (lastSeen dostane čistý aktuální čas)
     await Gateway.findOneAndUpdate(
       { gatewayId },
-      { lastSeen: lastSeenCorrected, prevWasAlert },
+      { lastSeen: correctedTimestamp, prevWasAlert },
     );
 
     res.status(201).json({ message: "Data uložena", count: docs.length });
