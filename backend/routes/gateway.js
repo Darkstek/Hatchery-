@@ -13,17 +13,9 @@ router.post("/register", apiKeyAuth, async (req, res) => {
       return res.status(400).json({ error: "Chybí gatewayId nebo name" });
     }
 
-    // OPRAVA: Používáme korigovaný čas (-2h) pro konzistenci s data.js
-    const nowCorrected = new Date(new Date().getTime() - 2 * 60 * 60 * 1000);
-
     const gateway = await Gateway.findOneAndUpdate(
       { gatewayId },
-      { 
-        gatewayId, 
-        name, 
-        location: location || "Inkubator - Domov", 
-        lastSeen: nowCorrected 
-      },
+      { gatewayId, name, location: location || "Kurník", lastSeen: new Date() },
       { upsert: true, new: true },
     );
 
@@ -40,15 +32,10 @@ router.get("/", jwtAuth, async (req, res) => {
     const gateways = await Gateway.find().sort({ lastSeen: -1 });
 
     const gatewaysWithStatus = gateways.map((gw) => {
-      // OPRAVA: Práh musíme počítat také z korigovaného času!
-      // Pokud v DB máme 17:00 (korigovaných 19:00), 
-      // musíme threshold počítat jako (19:00 - 2h) - 1 minuta = 16:59.
-      const nowCorrected = new Date(new Date().getTime() - 2 * 60 * 60 * 1000);
-      const threshold = new Date(nowCorrected.getTime() - 1 * 60 * 1000); // 1 minuta neaktivity
-
+      //const threshold = new Date(Date.now() - 20 * 60 * 1000); // práh je nastavený příliš dlouhý, aby se gateway neoznačovala jako offline, pokud se data posílají s mírným zpožděním
+      const threshold = new Date(Date.now() - 1 * 60 * 1000); // 1 minuta
       return {
         ...gw.toObject(),
-        // Porovnáváme korigovaný lastSeen s korigovaným prahem
         online: gw.lastSeen > threshold,
       };
     });
@@ -107,6 +94,7 @@ router.get("/settings", jwtAuth, async (req, res) => {
       return res.status(404).json({ error: "Gateway nenalezena" });
     }
  
+    // Vrátíme aktuální nastavení
     res.json({
       gatewayId: gateway.gatewayId,
       tempMin: gateway.tempMin,

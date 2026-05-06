@@ -46,21 +46,19 @@ router.post("/", apiKeyAuth, async (req, res) => {
         }
       }
 
-      // 3. OPRAVA ČASOVÉHO POSUNU (Vynucení UTC)
-      // Vytvoříme aktuální čas a odečteme od něj 2 hodiny (7200000 ms), 
-      // aby v DB bylo např. 17:13, když je u vás 19:13.
-      const now = new Date();
-      const correctedTimestamp = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      // 3. OPRAVA ČASU:
+      // Pokud mock pošle null, použije se new Date() (aktuální UTC čas serveru)
+      const timestamp = (item.time && item.time !== null) ? new Date(item.time) : new Date();
 
       return {
         gatewayId,
         nodeId: item.nodeId || String(item.id),
         temperature: temp,
         msg,
-        isAlert: shouldAlert,
+        isAlert: shouldAlert, 
         alertReason,
         dismissed: false,
-        timestamp: correctedTimestamp,
+        timestamp: timestamp,
       };
     });
 
@@ -69,7 +67,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
     // Aktualizace brány (lastSeen dostane čistý aktuální čas)
     await Gateway.findOneAndUpdate(
       { gatewayId },
-      { lastSeen: correctedTimestamp, prevWasAlert },
+      { lastSeen: new Date(), prevWasAlert },
     );
 
     res.status(201).json({ message: "Data uložena", count: docs.length });
