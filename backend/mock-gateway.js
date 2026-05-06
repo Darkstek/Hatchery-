@@ -27,7 +27,7 @@ async function register() {
 
 let nodeIdCounter = 1;
 
-function generateBatch(count = 3) {
+/* function generateBatch(count = 3) {
   const batch = [];
   const now = new Date();
 
@@ -47,6 +47,30 @@ function generateBatch(count = 3) {
       id: nodeIdCounter++,
       temp: offline ? null : temp,
       time: timeStr,
+      msg: offline ? "Senzor offline" : "OK",
+    });
+  }
+
+  return batch;
+} */
+
+function generateBatch(count = 3) {
+  const batch = [];
+
+  for (let i = 0; i < count; i++) {
+    const baseTemp = 37.5;
+    const variation = (Math.random() - 0.5) * 2;
+    const temp = parseFloat((baseTemp + variation).toFixed(2));
+
+    const offline = Math.random() < 0.05;
+
+    // OPRAVA: Pole 'time' nastavíme na null. 
+    // Backend v data.js díky tomu použije svůj interní čas: new Date(),
+    // který je v Node.js automaticky v UTC.
+    batch.push({
+      id: nodeIdCounter++,
+      temp: offline ? null : temp,
+      time: null, 
       msg: offline ? "Senzor offline" : "OK",
     });
   }

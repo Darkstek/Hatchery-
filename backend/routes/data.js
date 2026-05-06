@@ -29,37 +29,33 @@ router.post("/", apiKeyAuth, async (req, res) => {
       const isCurrentlyInError = msg !== "OK" || temp === null || temp < tempMin || temp > tempMax;
 
       // 2. LOGIKA ZAZNAMENÁVÁNÍ ZMĚN (Stavový automat)
-      // Alert chceme vytvořit, pokud se stav změnil oproti předchozímu měření
       const shouldAlert = isCurrentlyInError !== prevWasAlert;
 
-      // Aktualizujeme stav pro další prvek v batchi (pokud jich je víc)
+      // Aktualizujeme stav pro další prvek v batchi
       prevWasAlert = isCurrentlyInError;
 
       let alertReason = null;
       if (shouldAlert) {
         if (isCurrentlyInError) {
-          // Teplota právě VYŠLA z rozmezí (nebo je jiný error)
           if (msg !== "OK") alertReason = msg;
           else if (temp === null) alertReason = "Senzor offline";
           else if (temp < tempMin) alertReason = "Teplota pod minimem";
           else if (temp > tempMax) alertReason = "Teplota nad maximem";
         } else {
-          // Teplota se právě VRÁTILA do rozmezí
           alertReason = "Teplota se vrátila do normy";
         }
       }
 
-      // OPRAVA ČASU: 
-      // Pokud item.time obsahuje řetězec, JavaScript ho musí interpretovat jako UTC.
-      // Pokud item.time končí na 'Z' nebo je v ISO formátu, new Date() ho převede správně.
-      let timestamp = item.time ? new Date(item.time) : new Date();
+      // 3. OPRAVA ČASU:
+      // Pokud mock pošle null, použije se new Date() (aktuální UTC čas serveru)
+      const timestamp = (item.time && item.time !== null) ? new Date(item.time) : new Date();
 
       return {
         gatewayId,
         nodeId: item.nodeId || String(item.id),
         temperature: temp,
         msg,
-        isAlert: shouldAlert, // Teď bude true při každé změně stavu
+        isAlert: shouldAlert, 
         alertReason,
         dismissed: false,
         timestamp: timestamp,
@@ -68,6 +64,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
 
     await Measurement.insertMany(docs);
 
+    // Aktualizace brány (lastSeen dostane čistý aktuální čas)
     await Gateway.findOneAndUpdate(
       { gatewayId },
       { lastSeen: new Date(), prevWasAlert },
@@ -80,7 +77,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
   }
 });
 
-// GET /api/data — frontend si stáhne historii měření (chráněno JWT)
+// GET /api/data — frontend si stáhne historii měření
 router.get("/", jwtAuth, async (req, res) => {
   try {
     const { gatewayId, limit = 100, from, to } = req.query;
@@ -104,7 +101,7 @@ router.get("/", jwtAuth, async (req, res) => {
   }
 });
 
-// GET /api/data/latest — poslední měření (chráněno JWT)
+// GET /api/data/latest — poslední měření
 router.get("/latest", jwtAuth, async (req, res) => {
   try {
     const { gatewayId } = req.query;
@@ -123,7 +120,7 @@ router.get("/latest", jwtAuth, async (req, res) => {
   }
 });
 
-// GET /api/data/alerts — záznamy kde isAlert true (chráněno JWT)
+// GET /api/data/alerts — záznamy historie změn stavu
 router.get("/alerts", jwtAuth, async (req, res) => {
   try {
     const alerts = await Measurement.find({
@@ -140,7 +137,7 @@ router.get("/alerts", jwtAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/data/:id/dismiss — označí záznam jako vyřešený (chráněno JWT)
+// PATCH /api/data/:id/dismiss
 router.patch("/:id/dismiss", jwtAuth, async (req, res) => {
   try {
     const updated = await Measurement.findByIdAndUpdate(
