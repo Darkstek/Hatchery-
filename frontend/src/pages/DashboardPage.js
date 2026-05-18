@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  getMeasurements,
+  getMeasurementsByRange,
   getLatestMeasurement,
   getGateways,
   getAlerts,
@@ -24,44 +24,33 @@ function formatTemp(temp) {
   return parseFloat(temp).toFixed(1) + "°C";
 }
 
-//blbne čas 
-/* function formatTime(timestamp) {
-  const d = new Date(timestamp);
-  d.setHours(d.getHours() - 2);
-  return d.toLocaleString("cs-CZ");
-} */
-
-  // Opravená funkce pro formátování času bez posunu o 2 hodiny
-/*   function formatTime(timestamp) {
+function formatTime(timestamp) {
   if (!timestamp) return "—";
   const d = new Date(timestamp);
-  return d.toLocaleString("cs-CZ"); 
-} */
-
-  function formatTime(timestamp) {
-  if (!timestamp) return "—";
-  const d = new Date(timestamp);
-  // Použijeme toISOString a trochu ho upravíme pro čitelnost, 
-  // nebo použijeme lokální formát s vynuceným UTC
-  return d.toLocaleString("cs-CZ", { timeZone: "UTC" }); 
+  return d.toLocaleString("cs-CZ", { timeZone: "UTC" });
 }
 
-
-  // Opravená funkce pro formátování času bez posunu o 2 hodiny
-/*   function formatTimeShort(timestamp) {
+function formatTimeShort(timestamp, range) {
   if (!timestamp) return "";
   const d = new Date(timestamp);
-  return d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
-} */
-
-  function formatTimeShort(timestamp) {
-  if (!timestamp) return "";
-  const d = new Date(timestamp);
-  // Vynutíme zobrazení v časovém pásmu UTC
-  return d.toLocaleTimeString("cs-CZ", { 
-    hour: "2-digit", 
-    minute: "2-digit", 
-    timeZone: "UTC" 
+  if (range === "tyden") {
+    return d.toLocaleDateString("cs-CZ", {
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+  } else if (range === "mesic") {
+    return d.toLocaleDateString("cs-CZ", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "UTC",
+    });
+  }
+  return d.toLocaleTimeString("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
   });
 }
 
@@ -117,7 +106,6 @@ function LoadingSpinner() {
 function RangeSlider({ tempMin, tempMax, onChange }) {
   const MIN = 0;
   const MAX = 40;
-
   return (
     <div style={sliderStyles.wrapper}>
       <div style={sliderStyles.header}>
@@ -177,42 +165,63 @@ const sliderStyles = {
   tick: { color: "#64748b", fontSize: "12px", minWidth: "70px" },
 };
 
+const RANGES = [
+  { key: "den", label: "Den", hours: 24 },
+  { key: "tyden", label: "Týden", hours: 168 },
+  { key: "mesic", label: "Měsíc", hours: 720 },
+];
+
 export default function DashboardPage({ onLogout }) {
   const [measurements, setMeasurements] = useState([]);
   const [latest, setLatest] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [gateways, setGateways] = useState([]);
   const [loading, setLoading] = useState(true);
-  /*     const [tempMin, setTempMin] = useState(
-        () => Number(localStorage.getItem("tempMin")) || 20,
-      );
-      const [tempMax, setTempMax] = useState(
-        () => Number(localStorage.getItem("tempMax")) || 25,
-      ); */
-  const [tempMin, setTempMin] = useState(20); // Základní fallback
-  const [tempMax, setTempMax] = useState(25); // Základní fallback
-
+  const [chartLoading, setChartLoading] = useState(false);
+  const [tempMin, setTempMin] = useState(20);
+  const [tempMax, setTempMax] = useState(25);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDismissAll, setConfirmDismissAll] = useState(false);
+  const [selectedRange, setSelectedRange] = useState("den");
+
+  const fetchChart = useCallback(async (range) => {
+    setChartLoading(true);
+    try {
+      const hours = RANGES.find((r) => r.key === range)?.hours || 24;
+      const to = new Date();
+      const from = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const m = await getMeasurementsByRange(from, to);
+      setMeasurements(
+        m.reverse().map((d) => ({
+          ...d,
+          temperature:
+            d.temperature !== null
+              ? parseFloat(parseFloat(d.temperature).toFixed(1))
+              : null,
+          time: formatTimeShort(d.timestamp, range),
+        })),
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setChartLoading(false);
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
-      const [m, l, g, a, settings] = await Promise.all([
-        getMeasurements(50),
+      const [l, g, a, settings] = await Promise.all([
         getLatestMeasurement(),
         getGateways(),
         getAlerts(),
-        getGatewaySettings("gateway-01"), // <--- Tady načteme reálné limity z DB
+        getGatewaySettings("gateway-01"),
       ]);
 
-      // Pokud se nastavení v DB liší od toho, co máme v state, aktualizujeme ho
       if (settings) {
         setTempMin(settings.tempMin);
         setTempMax(settings.tempMax);
       }
 
-      // ... zbytek vaší logiky pro setMeasurements, setLatest, atd.
-      setMeasurements(m.reverse().map(d => ({ ...d, time: formatTimeShort(d.timestamp) })));
       setLatest(l);
       setAlerts(a);
       setGateways(g);
@@ -225,9 +234,15 @@ export default function DashboardPage({ onLogout }) {
 
   useEffect(() => {
     fetchData();
+    fetchChart(selectedRange);
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, fetchChart, selectedRange]);
+
+  const handleRangeChange = (range) => {
+    setSelectedRange(range);
+    fetchChart(range);
+  };
 
   const handleDeleteAlert = async (id) => {
     try {
@@ -499,59 +514,103 @@ export default function DashboardPage({ onLogout }) {
         </div>
 
         <div style={styles.chartCard}>
-          <h2 style={styles.chartTitle}>Historie teplot</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart
-              data={measurements}
-              margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "24px",
+            }}
+          >
+            <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie teplot</h2>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {RANGES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => handleRangeChange(r.key)}
+                  style={{
+                    background:
+                      selectedRange === r.key ? "#f59e0b" : "transparent",
+                    border: `1px solid ${selectedRange === r.key ? "#f59e0b" : "#475569"}`,
+                    borderRadius: "6px",
+                    padding: "6px 14px",
+                    color: selectedRange === r.key ? "#0f172a" : "#94a3b8",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: selectedRange === r.key ? 700 : 400,
+                  }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {chartLoading ? (
+            <div
+              style={{
+                height: 300,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis
-                dataKey="time"
-                stroke="#64748b"
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
-              />
-              <YAxis
-                domain={[0, 40]}
-                stroke="#64748b"
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
-                unit="°C"
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "#1e293b",
-                  border: "1px solid #334155",
-                  borderRadius: "8px",
-                }}
-                labelStyle={{ color: "#f1f5f9" }}
-                itemStyle={{ color: "#f59e0b" }}
-                formatter={(value) =>
-                  value !== null ? `${parseFloat(value).toFixed(1)}°C` : "—"
-                }
-              />
-              <ReferenceLine
-                y={tempMin}
-                stroke="#60a5fa"
-                strokeDasharray="5 5"
-                label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={tempMax}
-                stroke="#f87171"
-                strokeDasharray="5 5"
-                label={{ value: "Max", fill: "#f87171", fontSize: 11 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="temperature"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 5, fill: "#f59e0b" }}
-                connectNulls={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+              <p style={{ color: "#94a3b8" }}>Načítám data...</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={measurements}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#64748b"
+                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  domain={[0, 40]}
+                  stroke="#64748b"
+                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  unit="°C"
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#1e293b",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                  }}
+                  labelStyle={{ color: "#f1f5f9" }}
+                  itemStyle={{ color: "#f59e0b" }}
+                  formatter={(value) =>
+                    value !== null ? `${parseFloat(value).toFixed(1)}°C` : "—"
+                  }
+                />
+                <ReferenceLine
+                  y={tempMin}
+                  stroke="#60a5fa"
+                  strokeDasharray="5 5"
+                  label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={tempMax}
+                  stroke="#f87171"
+                  strokeDasharray="5 5"
+                  label={{ value: "Max", fill: "#f87171", fontSize: 11 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="temperature"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: "#f59e0b" }}
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {alerts.length > 0 && (
@@ -590,8 +649,7 @@ export default function DashboardPage({ onLogout }) {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      // Dynamická barva podle typu alertu
-                      background: a.alertReason?.includes("normy") ? "#4ade80" : (a.msg !== "OK" ? "#f87171" : "#f59e0b"),
+                      background: a.msg !== "OK" ? "#f87171" : "#f59e0b",
                       flexShrink: 0,
                     }}
                   />

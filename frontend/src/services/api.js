@@ -6,7 +6,6 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-// Automaticky přidej JWT token ke každému requestu
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -15,7 +14,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Pokud token expiruje, odhlás uživatele
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -34,6 +32,16 @@ export const login = async (email, password) => {
 
 export const getMeasurements = async (limit = 100) => {
   const res = await api.get(`/api/data?limit=${limit}`);
+  return res.data;
+};
+
+export const getMeasurementsByRange = async (from, to) => {
+  const params = new URLSearchParams({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    limit: 5000,
+  });
+  const res = await api.get(`/api/data?${params}`);
   return res.data;
 };
 
@@ -66,7 +74,6 @@ export const updateGatewaySettings = async (gatewayId, tempMin, tempMax) => {
   return res.data;
 };
 
-// Přidej funkci pro získání nastavení brány
 export const getGatewaySettings = async (gatewayId) => {
   const res = await api.get(`/api/gateway/settings?gatewayId=${gatewayId}`);
   return res.data;
