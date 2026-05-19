@@ -33,7 +33,7 @@ router.get("/", jwtAuth, async (req, res) => {
 
     const gatewaysWithStatus = gateways.map((gw) => {
       //const threshold = new Date(Date.now() - 20 * 60 * 1000); // práh je nastavený příliš dlouhý, aby se gateway neoznačovala jako offline, pokud se data posílají s mírným zpožděním
-      const threshold = new Date(Date.now() - 1 * 60 * 1000); // 1 minuta
+      const threshold = new Date(Date.now() - 1 * 30 * 1000); // 30 sekund
       return {
         ...gw.toObject(),
         online: gw.lastSeen > threshold,
