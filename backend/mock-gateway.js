@@ -27,33 +27,6 @@ async function register() {
 
 let nodeIdCounter = 1;
 
-/* function generateBatch(count = 3) {
-  const batch = [];
-  const now = new Date();
-
-  for (let i = 0; i < count; i++) {
-    const baseTemp = 37.5;
-    const variation = (Math.random() - 0.5) * 2;
-    const temp = parseFloat((baseTemp + variation).toFixed(2));
-
-    const offline = Math.random() < 0.05;
-
-    // OPRAVA: Posíláme čistý ISO řetězec, který končí na 'Z' (UTC)
-    // To zajistí, že frontend i backend budou mít stejný časový základ.
-    const time = new Date(now.getTime() - (count - i) * 10000);
-    const timeStr = time.toISOString(); 
-
-    batch.push({
-      id: nodeIdCounter++,
-      temp: offline ? null : temp,
-      time: timeStr,
-      msg: offline ? "Senzor offline" : "OK",
-    });
-  }
-
-  return batch;
-} */
-
 function generateBatch(count = 3) {
   const batch = [];
 
