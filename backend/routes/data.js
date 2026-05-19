@@ -15,6 +15,9 @@ router.post("/", apiKeyAuth, async (req, res) => {
       return res.status(400).json({ error: "Prázdný batch" });
     }
 
+    // JEDEN JEDNOTNÝ ČASOVÝ BOD PRO CELÝ POŽADAVEK
+    const serverNow = new Date();
+
     // Načteme gateway s rozsahem teplot a předchozím stavem
     const gateway = await Gateway.findOne({ gatewayId });
     const tempMin = gateway?.tempMin ?? 20;
@@ -28,7 +31,7 @@ router.post("/", apiKeyAuth, async (req, res) => {
       // 1. Definujeme aktuální stav (problém vs. pohoda)
       const isCurrentlyInError = msg !== "OK" || temp === null || temp < tempMin || temp > tempMax;
 
-      // 2. LOGIKA ZAZNAMENÁVÁNÍ ZMĚN (Stavový automat)
+      // 2. LOGIKA ZAZNAMENÁVÁNÍ ZMÊN (Stavový automat)
       const shouldAlert = isCurrentlyInError !== prevWasAlert;
 
       // Aktualizujeme stav pro další prvek v batchi
@@ -47,8 +50,8 @@ router.post("/", apiKeyAuth, async (req, res) => {
       }
 
       // 3. OPRAVA ČASU:
-      // Pokud mock pošle null, použije se new Date() (aktuální UTC čas serveru)
-      const timestamp = (item.time && item.time !== null) ? new Date(item.time) : new Date();
+      // Pokud mock pošle null, použijeme náš jednotný čas serverNow
+      const timestamp = (item.time && item.time !== null) ? new Date(item.time) : serverNow;
 
       return {
         gatewayId,
@@ -64,10 +67,10 @@ router.post("/", apiKeyAuth, async (req, res) => {
 
     await Measurement.insertMany(docs);
 
-    // Aktualizace brány (lastSeen dostane čistý aktuální čas)
+    // Aktualizace brány — lastSeen dostane přesně stejný čas jako měření navrchu
     await Gateway.findOneAndUpdate(
       { gatewayId },
-      { lastSeen: new Date(), prevWasAlert },
+      { lastSeen: serverNow, prevWasAlert },
     );
 
     res.status(201).json({ message: "Data uložena", count: docs.length });
