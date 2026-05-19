@@ -191,16 +191,19 @@ export default function DashboardPage({ onLogout }) {
       const to = new Date();
       const from = new Date(Date.now() - hours * 60 * 60 * 1000);
       const m = await getMeasurementsByRange(from, to);
-      setMeasurements(
-        m.reverse().map((d) => ({
-          ...d,
-          temperature:
-            d.temperature !== null
-              ? parseFloat(parseFloat(d.temperature).toFixed(1))
-              : null,
-          time: formatTimeShort(d.timestamp, range),
-        })),
-      );
+      
+      if (Array.isArray(m)) {
+        setMeasurements(
+          m.reverse().map((d) => ({
+            ...d,
+            temperature:
+              d.temperature !== null
+                ? parseFloat(parseFloat(d.temperature).toFixed(1))
+                : null,
+            time: formatTimeShort(d.timestamp, range),
+          })),
+        );
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -504,8 +507,6 @@ export default function DashboardPage({ onLogout }) {
             onChange={(min, max) => {
               setTempMin(min);
               setTempMax(max);
-              localStorage.setItem("tempMin", min);
-              localStorage.setItem("tempMax", max);
               updateGatewaySettings("gateway-01", min, max).catch(
                 console.error,
               );
@@ -642,42 +643,59 @@ export default function DashboardPage({ onLogout }) {
               </button>
             </div>
             <div style={styles.alertList}>
-              {alerts.slice(0, 10).map((a) => (
-                <div key={a._id} style={styles.alertRow}>
-                  <div
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background: a.msg !== "OK" ? "#f87171" : "#f59e0b",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <p style={styles.alertText}>
-                      {a.alertReason ||
-                        (a.msg && a.msg !== "OK"
-                          ? a.msg
-                          : a.temperature < tempMin
-                            ? "Teplota pod minimem"
-                            : "Teplota nad maximem")}
-                      {" — Gateway: "}
-                      {a.gatewayId}
-                    </p>
-                    <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
+              {alerts.slice(0, 10).map((a) => {
+                // Pokročilá dynamická logika vyhodnocování barev
+                let dotColor = "#f59e0b"; // Výchozí varovná oranžová (Teplota mimo rozsah)
+                
+                if (a.alertReason === "Teplota se vrátila do normy") {
+                  dotColor = "#4ade80"; // Zelená pro vyřešení stavu
+                } else if (
+                  a.alertReason === "Senzor offline" || 
+                  a.msg === "Senzor offline" || 
+                  a.temperature === null
+                ) {
+                  dotColor = "#f87171"; // Červená pro kompletní výpadek stanice / hardwarový error
+                } else if (a.msg && a.msg !== "OK") {
+                  dotColor = "#f87171"; // Červená pro jakékoliv jiné kritické hlášení brány
+                }
+
+                return (
+                  <div key={a._id} style={styles.alertRow}>
+                    <div
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: dotColor,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <p style={styles.alertText}>
+                        {a.alertReason ||
+                          (a.msg && a.msg !== "OK"
+                            ? a.msg
+                            : a.temperature < tempMin
+                              ? "Teplota pod minimem"
+                              : "Teplota nad maximem")}
+                        {" — Gateway: "}
+                        {a.gatewayId}
+                      </p>
+                      <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
+                    </div>
+                    <span style={styles.alertTemp}>
+                      {formatTemp(a.temperature)}
+                    </span>
+                    <button
+                      onClick={() => setConfirmDelete(a._id)}
+                      style={styles.deleteBtn}
+                      title="Smazat upozornění"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <span style={styles.alertTemp}>
-                    {formatTemp(a.temperature)}
-                  </span>
-                  <button
-                    onClick={() => setConfirmDelete(a._id)}
-                    style={styles.deleteBtn}
-                    title="Smazat upozornění"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
