@@ -1,55 +1,86 @@
 // mock-gateway.js — spusť: node mock-gateway.js
-// Simuluje POUZE JEDEN další teploměr s intervalem 10 minut a teplotou 24-27 °C
+// Simuluje Pavlovu gateway — posílá batch dat každých 15 minut
+// Pro testování posílá každých 10 sekund
 
 const fetch = require("node-fetch");
 
 const API_URL = "https://hatchery-l9qw.onrender.com";
 const API_KEY = "hatchery-gw-key-2026";
-const GATEWAY_ID = "gateway-01"; 
+const GATEWAY_ID = "gateway-01";
 
 async function register() {
-  try {
-    const res = await fetch(`${API_URL}/api/gateway/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-      },
-      body: JSON.stringify({
-        gatewayId: GATEWAY_ID,
-        name: "Líheň kurník #1",
-        location: "Kurník A",
-      }),
-    });
-    const data = await res.json();
-    console.log("Gateway registrována:", data.message || "OK");
-  } catch (err) {
-    console.error("Chyba při registraci gateway:", err.message);
-  }
+  const res = await fetch(`${API_URL}/api/gateway/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": API_KEY,
+    },
+    body: JSON.stringify({
+      gatewayId: GATEWAY_ID,
+      name: "Líheň kurník #1",
+      location: "Kurník A",
+    }),
+  });
+  const data = await res.json();
+  console.log("Gateway registrována:", data.message || "OK");
 }
 
-function generateBatch() {
+let nodeIdCounter = 1;
+
+/* function generateBatch(count = 3) {
+  const batch = [];
+  const now = new Date();
+
+  for (let i = 0; i < count; i++) {
+    const baseTemp = 37.5;
+    const variation = (Math.random() - 0.5) * 2;
+    const temp = parseFloat((baseTemp + variation).toFixed(2));
+
+    const offline = Math.random() < 0.05;
+
+    // OPRAVA: Posíláme čistý ISO řetězec, který končí na 'Z' (UTC)
+    // To zajistí, že frontend i backend budou mít stejný časový základ.
+    const time = new Date(now.getTime() - (count - i) * 10000);
+    const timeStr = time.toISOString(); 
+
+    batch.push({
+      id: nodeIdCounter++,
+      temp: offline ? null : temp,
+      time: timeStr,
+      msg: offline ? "Senzor offline" : "OK",
+    });
+  }
+
+  return batch;
+} */
+
+function generateBatch(count = 3) {
   const batch = [];
 
-  // --- SIMULOVANÝ POMOCNÝ TEPLOMĚR ---
-  // Math.random() generuje od 0 do 1.
-  // Vynásobením 3 získáme rozsah 0 až 3.
-  // Přičtením k 24 dostaneme přesný rozsah 24.00 až 27.00 °C.
-  const temp = parseFloat((24.0 + Math.random() * 3.0).toFixed(2));
-  const offline = Math.random() < 0.01; // Snížená šance na výpadek na 1 %
+  for (let i = 0; i < count; i++) {
+    const baseTemp = 37.5;
+    const variation = (Math.random() - 0.5) * 2;
+    const temp = parseFloat((baseTemp + variation).toFixed(2));
 
-  batch.push({
-    nodeId: "Inkubator - Simulovany",
-    temp: offline ? null : temp,
-    time: null, 
-    msg: offline ? "Senzor offline" : "OK",
-  });
+    const offline = Math.random() < 0.05;
+
+    // OPRAVA: Pole 'time' nastavíme na null. 
+    // Backend v data.js díky tomu použije svůj interní čas: new Date(),
+    // který je v Node.js automaticky v UTC.
+    batch.push({
+      id: nodeIdCounter++,
+      temp: offline ? null : temp,
+      time: null, 
+      msg: offline ? "Senzor offline" : "OK",
+    });
+  }
 
   return batch;
 }
 
 async function sendBatch() {
-  const batch = generateBatch();
+  const batch = generateBatch(3);
+
   try {
     const res = await fetch(`${API_URL}/api/data`, {
       method: "POST",
@@ -62,24 +93,32 @@ async function sendBatch() {
     });
 
     const data = await res.json();
-    const logTime = new Date().toLocaleTimeString("cs-CZ");
 
-    console.log(
-      `[${logTime}] SIMULACE — Teplota: ${batch[0].temp ?? "null"}°C | msg: ${batch[0].msg}`
-    );
-    console.log(`Odesláno do DB (korigovaný UTC čas).\n`);
+    batch.forEach((item) => {
+      const tempStatus = item.temp === null
+        ? "📴 SENZOR OFFLINE"
+        : item.temp < 36.5
+        ? "❄️  PŘÍLIŠ CHLADNO"
+        : item.temp > 38.5
+        ? "🔥 PŘÍLIŠ TEPLO"
+        : "✅ OK";
+
+      console.log(
+        `[${item.time}] ID: ${item.id} | Teplota: ${item.temp ?? "null"}°C ${tempStatus} | msg: ${item.msg}`
+      );
+    });
+
+    console.log(`Odesláno ${data.count} záznamu\n`);
   } catch (err) {
-    console.error("Chyba simulátoru:", err.message);
+    console.error("Chyba při odesílání:", err.message);
   }
 }
 
 async function main() {
-  console.log("Simulátor sekundárního čídla spuštěn — odesílám každých 10 minut...\n");
+  console.log("Mock gateway spuštěna (Pavluv format) — batch každých 10s...\n");
   await register();
   await sendBatch();
-  
-  
-  setInterval(sendBatch, 10 * 60 * 1000); // Odesílat každých 10 minut
+  setInterval(sendBatch, 10000);
 }
 
 main();

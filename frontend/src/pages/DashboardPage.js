@@ -193,21 +193,16 @@ export default function DashboardPage({ onLogout }) {
       const m = await getMeasurementsByRange(from, to);
       
       if (Array.isArray(m)) {
-        const grouped = {};
-        
-        m.forEach((d) => {
-          const timeKey = formatTimeShort(d.timestamp, range);
-          if (!grouped[timeKey]) {
-            grouped[timeKey] = { time: timeKey };
-          }
-          
-          const tempVal = d.temperature !== null ? parseFloat(parseFloat(d.temperature).toFixed(1)) : null;
-          
-          if (d.nodeId === "Inkubator - Domov") grouped[timeKey].realTemp = tempVal;
-          if (d.nodeId === "Inkubator - Simulovany") grouped[timeKey].mockTemp = tempVal;
-        });
-
-        setMeasurements(Object.values(grouped).reverse());
+        setMeasurements(
+          m.reverse().map((d) => ({
+            ...d,
+            temperature:
+              d.temperature !== null
+                ? parseFloat(parseFloat(d.temperature).toFixed(1))
+                : null,
+            time: formatTimeShort(d.timestamp, range),
+          })),
+        );
       }
     } catch (err) {
       console.error(err);
@@ -304,13 +299,24 @@ export default function DashboardPage({ onLogout }) {
               textAlign: "center",
             }}
           >
-            <p style={{ color: "#f1f5f9", fontSize: "16px", fontWeight: 600, margin: "0 0 8px" }}>
+            <p
+              style={{
+                color: "#f1f5f9",
+                fontSize: "16px",
+                fontWeight: 600,
+                margin: "0 0 8px",
+              }}
+            >
               Smazat upozornění?
             </p>
-            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}>
+            <p
+              style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}
+            >
               Tato akce je nevratná.
             </p>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <div
+              style={{ display: "flex", gap: "12px", justifyContent: "center" }}
+            >
               <button
                 onClick={() => setConfirmDelete(null)}
                 style={{
@@ -368,13 +374,24 @@ export default function DashboardPage({ onLogout }) {
               textAlign: "center",
             }}
           >
-            <p style={{ color: "#f1f5f9", fontSize: "16px", fontWeight: 600, margin: "0 0 8px" }}>
+            <p
+              style={{
+                color: "#f1f5f9",
+                fontSize: "16px",
+                fontWeight: 600,
+                margin: "0 0 8px",
+              }}
+            >
               Smazat všechna upozornění?
             </p>
-            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}>
+            <p
+              style={{ color: "#94a3b8", fontSize: "14px", margin: "0 0 24px" }}
+            >
               Tato akce je nevratná.
             </p>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <div
+              style={{ display: "flex", gap: "12px", justifyContent: "center" }}
+            >
               <button
                 onClick={() => setConfirmDismissAll(false)}
                 style={{
@@ -438,47 +455,41 @@ export default function DashboardPage({ onLogout }) {
           </div>
 
           <div style={styles.card}>
-            <p style={styles.cardLabel}>Stav příjmu dat</p>
+            <p style={styles.cardLabel}>Stav gateway</p>
             {gateways.length === 0 ? (
-              <p style={{ color: "#94a3b8" }}>Žádná stanice</p>
+              <p style={{ color: "#94a3b8" }}>Žádná gateway</p>
             ) : (
-              gateways.map((gw) => {
-                const sekundyZpet = latest ? (Date.now() - new Date(latest.timestamp).getTime()) / 1000 : 99999;
-                const isReceiving = sekundyZpet < 30; 
-
-                let jmenoCidla = "Neznámé čidlo";
-                if (latest?.nodeId === "Inkubator - Domov") jmenoCidla = "Hlavní (Reálný)";
-                if (latest?.nodeId === "Inkubator - Simulovany") jmenoCidla = "Pomocný (Sim)";
-
-                return (
-                  <div key={gw.gatewayId} style={styles.gwRow}>
-                    <span
-                      style={{
-                        ...styles.dot,
-                        background: isReceiving ? "#4ade80" : "#ef4444", 
-                      }}
-                    />
-                    <div>
-                      <p style={styles.gwName}>
-                        {isReceiving ? `Příjem: ${jmenoCidla}` : "Čekám na data..."}
-                      </p>
-                      <p style={styles.gwSub}>
-                        {gw.name} · {gw.location}
-                      </p>
-                    </div>
+              gateways.map((gw) => (
+                <div key={gw.gatewayId} style={styles.gwRow}>
+                  <span
+                    style={{
+                      ...styles.dot,
+                      background: gw.online ? "#4ade80" : "#f87171",
+                    }}
+                  />
+                  <div>
+                    <p style={styles.gwName}>{gw.name}</p>
+                    <p style={styles.gwSub}>
+                      {gw.online ? "Připojena" : "Odpojena"} · {gw.location}
+                    </p>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
             <p style={styles.cardSub}>
-              Poslední balíček: {latest ? formatTime(latest.timestamp) : "—"}
+              Poslední záznam: {latest ? formatTime(latest.timestamp) : "—"}
             </p>
           </div>
 
           <div style={styles.card}>
             <p style={styles.cardLabel}>Upozornění</p>
             <p style={styles.bigTemp}>{alerts.length}</p>
-            <p style={{ color: alerts.length === 0 ? "#4ade80" : "#f59e0b", fontWeight: 600 }}>
+            <p
+              style={{
+                color: alerts.length === 0 ? "#4ade80" : "#f59e0b",
+                fontWeight: 600,
+              }}
+            >
               {alerts.length === 0 ? "Vše v pořádku" : "Vyžaduje pozornost"}
             </p>
             <p style={styles.cardSub}>
@@ -496,13 +507,22 @@ export default function DashboardPage({ onLogout }) {
             onChange={(min, max) => {
               setTempMin(min);
               setTempMax(max);
-              updateGatewaySettings("gateway-01", min, max).catch(console.error);
+              updateGatewaySettings("gateway-01", min, max).catch(
+                console.error,
+              );
             }}
           />
         </div>
 
         <div style={styles.chartCard}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "24px",
+            }}
+          >
             <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie teplot</h2>
             <div style={{ display: "flex", gap: "8px" }}>
               {RANGES.map((r) => (
@@ -510,7 +530,8 @@ export default function DashboardPage({ onLogout }) {
                   key={r.key}
                   onClick={() => handleRangeChange(r.key)}
                   style={{
-                    background: selectedRange === r.key ? "#f59e0b" : "transparent",
+                    background:
+                      selectedRange === r.key ? "#f59e0b" : "transparent",
                     border: `1px solid ${selectedRange === r.key ? "#f59e0b" : "#475569"}`,
                     borderRadius: "6px",
                     padding: "6px 14px",
@@ -526,25 +547,68 @@ export default function DashboardPage({ onLogout }) {
             </div>
           </div>
           {chartLoading ? (
-            <div style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div
+              style={{
+                height: 300,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <p style={{ color: "#94a3b8" }}>Načítám data...</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={measurements} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <LineChart
+                data={measurements}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis domain={[30, 42]} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} unit="°C" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#64748b"
+                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  domain={[0, 40]}
+                  stroke="#64748b"
+                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  unit="°C"
+                />
                 <Tooltip
-                  contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
+                  contentStyle={{
+                    background: "#1e293b",
+                    border: "1px solid #334155",
+                    borderRadius: "8px",
+                  }}
                   labelStyle={{ color: "#f1f5f9" }}
                   itemStyle={{ color: "#f59e0b" }}
+                  formatter={(value) =>
+                    value !== null ? `${parseFloat(value).toFixed(1)}°C` : "—"
+                  }
                 />
-                <ReferenceLine y={tempMin} stroke="#60a5fa" strokeDasharray="5 5" label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }} />
-                <ReferenceLine y={tempMax} stroke="#f87171" strokeDasharray="5 5" label={{ value: "Max", fill: "#f87171", fontSize: 11 }} />
-                
-                <Line name="Teploměr Hlavní" type="monotone" dataKey="realTemp" stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 5, fill: "#f59e0b" }} connectNulls={true} />
-                <Line name="Teploměr Pomocný (Sim)" type="monotone" dataKey="mockTemp" stroke="#06b6d4" strokeWidth={2} dot={false} activeDot={{ r: 5, fill: "#06b6d4" }} connectNulls={true} />
+                <ReferenceLine
+                  y={tempMin}
+                  stroke="#60a5fa"
+                  strokeDasharray="5 5"
+                  label={{ value: "Min", fill: "#60a5fa", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={tempMax}
+                  stroke="#f87171"
+                  strokeDasharray="5 5"
+                  label={{ value: "Max", fill: "#f87171", fontSize: 11 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="temperature"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: "#f59e0b" }}
+                  connectNulls={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -552,35 +616,83 @@ export default function DashboardPage({ onLogout }) {
 
         {alerts.length > 0 && (
           <div style={styles.chartCard}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-              <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie upozornění</h2>
-              <button onClick={() => setConfirmDismissAll(true)} style={{ background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "8px 16px", color: "#94a3b8", cursor: "pointer", fontSize: "13px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "24px",
+              }}
+            >
+              <h2 style={{ ...styles.chartTitle, margin: 0 }}>
+                Historie upozornění
+              </h2>
+              <button
+                onClick={() => setConfirmDismissAll(true)}
+                style={{
+                  background: "transparent",
+                  border: "1px solid #475569",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                }}
+              >
                 Smazat vše
               </button>
             </div>
             <div style={styles.alertList}>
               {alerts.slice(0, 10).map((a) => {
-                let dotColor = "#f59e0b"; 
+                // Pokročilá dynamická logika vyhodnocování barev
+                let dotColor = "#f59e0b"; // Výchozí varovná oranžová (Teplota mimo rozsah)
+                
                 if (a.alertReason === "Teplota se vrátila do normy") {
-                  dotColor = "#4ade80"; 
-                } else if (a.alertReason === "Senzor offline" || a.msg === "Senzor offline" || a.temperature === null) {
-                  dotColor = "#f87171"; 
+                  dotColor = "#4ade80"; // Zelená pro vyřešení stavu
+                } else if (
+                  a.alertReason === "Senzor offline" || 
+                  a.msg === "Senzor offline" || 
+                  a.temperature === null
+                ) {
+                  dotColor = "#f87171"; // Červená pro kompletní výpadek stanice / hardwarový error
                 } else if (a.msg && a.msg !== "OK") {
-                  dotColor = "#f87171"; 
+                  dotColor = "#f87171"; // Červená pro jakékoliv jiné kritické hlášení brány
                 }
 
                 return (
                   <div key={a._id} style={styles.alertRow}>
-                    <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+                    <div
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: dotColor,
+                        flexShrink: 0,
+                      }}
+                    />
                     <div style={{ flex: 1 }}>
                       <p style={styles.alertText}>
-                        {a.alertReason || (a.msg && a.msg !== "OK" ? a.msg : a.temperature < tempMin ? "Teplota pod minimem" : "Teplota nad maximem")}
-                        {" — Čidlo: "}{a.nodeId}
+                        {a.alertReason ||
+                          (a.msg && a.msg !== "OK"
+                            ? a.msg
+                            : a.temperature < tempMin
+                              ? "Teplota pod minimem"
+                              : "Teplota nad maximem")}
+                        {" — Gateway: "}
+                        {a.gatewayId}
                       </p>
                       <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
                     </div>
-                    <span style={styles.alertTemp}>{formatTemp(a.temperature)}</span>
-                    <button onClick={() => setConfirmDelete(a._id)} style={styles.deleteBtn} title="Smazat upozornění">✕</button>
+                    <span style={styles.alertTemp}>
+                      {formatTemp(a.temperature)}
+                    </span>
+                    <button
+                      onClick={() => setConfirmDelete(a._id)}
+                      style={styles.deleteBtn}
+                      title="Smazat upozornění"
+                    >
+                      ✕
+                    </button>
                   </div>
                 );
               })}
@@ -594,26 +706,107 @@ export default function DashboardPage({ onLogout }) {
 
 const styles = {
   container: { minHeight: "100vh", background: "#0f172a", color: "#f1f5f9" },
-  header: { background: "#1e293b", borderBottom: "1px solid #334155", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  headerTitle: { color: "#f1f5f9", fontSize: "20px", fontWeight: "700", margin: 0 },
+  header: {
+    background: "#1e293b",
+    borderBottom: "1px solid #334155",
+    padding: "16px 32px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: {
+    color: "#f1f5f9",
+    fontSize: "20px",
+    fontWeight: "700",
+    margin: 0,
+  },
   headerSub: { color: "#94a3b8", fontSize: "13px", margin: 0 },
-  logoutBtn: { background: "transparent", border: "1px solid #475569", borderRadius: "8px", padding: "8px 16px", color: "#94a3b8", cursor: "pointer", fontSize: "14px" },
+  logoutBtn: {
+    background: "transparent",
+    border: "1px solid #475569",
+    borderRadius: "8px",
+    padding: "8px 16px",
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
   content: { padding: "32px", maxWidth: "1200px", margin: "0 auto" },
-  cardRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginBottom: "24px" },
-  card: { background: "#1e293b", borderRadius: "12px", padding: "24px", border: "1px solid #334155" },
-  cardLabel: { color: "#94a3b8", fontSize: "13px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px" },
-  bigTemp: { color: "#f1f5f9", fontSize: "48px", fontWeight: "700", margin: "0 0 8px", lineHeight: 1 },
+  cardRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "20px",
+    marginBottom: "24px",
+  },
+  card: {
+    background: "#1e293b",
+    borderRadius: "12px",
+    padding: "24px",
+    border: "1px solid #334155",
+  },
+  cardLabel: {
+    color: "#94a3b8",
+    fontSize: "13px",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    margin: "0 0 12px",
+  },
+  bigTemp: {
+    color: "#f1f5f9",
+    fontSize: "48px",
+    fontWeight: "700",
+    margin: "0 0 8px",
+    lineHeight: 1,
+  },
   cardSub: { color: "#64748b", fontSize: "12px", margin: "8px 0 0" },
-  gwRow: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" },
+  gwRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "12px",
+  },
   dot: { width: "10px", height: "10px", borderRadius: "50%", flexShrink: 0 },
   gwName: { color: "#f1f5f9", fontSize: "15px", fontWeight: "600", margin: 0 },
   gwSub: { color: "#64748b", fontSize: "12px", margin: 0 },
-  chartCard: { background: "#1e293b", borderRadius: "12px", padding: "24px", border: "1px solid #334155", marginBottom: "24px" },
-  chartTitle: { color: "#f1f5f9", fontSize: "18px", fontWeight: "600", margin: "0 0 24px" },
+  chartCard: {
+    background: "#1e293b",
+    borderRadius: "12px",
+    padding: "24px",
+    border: "1px solid #334155",
+    marginBottom: "24px",
+  },
+  chartTitle: {
+    color: "#f1f5f9",
+    fontSize: "18px",
+    fontWeight: "600",
+    margin: "0 0 24px",
+  },
   alertList: { display: "flex", flexDirection: "column", gap: "12px" },
-  alertRow: { display: "flex", alignItems: "center", gap: "16px", background: "#0f172a", borderRadius: "8px", padding: "12px 16px", border: "1px solid #334155" },
-  alertText: { color: "#f1f5f9", fontSize: "14px", fontWeight: "600", margin: 0 },
+  alertRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    background: "#0f172a",
+    borderRadius: "8px",
+    padding: "12px 16px",
+    border: "1px solid #334155",
+  },
+  alertText: {
+    color: "#f1f5f9",
+    fontSize: "14px",
+    fontWeight: "600",
+    margin: 0,
+  },
   alertTime: { color: "#64748b", fontSize: "12px", margin: "4px 0 0" },
   alertTemp: { color: "#f59e0b", fontWeight: "700", fontSize: "16px" },
-  deleteBtn: { background: "transparent", border: "1px solid #475569", borderRadius: "6px", color: "#94a3b8", cursor: "pointer", fontSize: "12px", padding: "4px 8px", flexShrink: 0 },
+  deleteBtn: {
+    background: "transparent",
+    border: "1px solid #475569",
+    borderRadius: "6px",
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: "12px",
+    padding: "4px 8px",
+    flexShrink: 0,
+  },
 };
