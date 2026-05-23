@@ -195,7 +195,8 @@ export default function DashboardPage({ onLogout }) {
     setChartLoading(true);
     try {
       const hours = RANGES.find((r) => r.key === range)?.hours || 24;
-      const to = new Date(Date.now() - off * hours * 60 * 60 * 1000);
+      const offsetMs = 2 * 60 * 60 * 1000;
+      const to = new Date(Date.now() - off * hours * 60 * 60 * 1000 + offsetMs);
       const from = new Date(to - hours * 60 * 60 * 1000);
       const m = await getMeasurementsByRange(from, to);
       setMeasurements(
