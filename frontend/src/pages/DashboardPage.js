@@ -39,7 +39,8 @@ function formatTimeShort(timestamp, range) {
 
 function getOffsetLabel(range, offset) {
   if (offset === 0) return "Aktuální";
-  const now = new Date();
+  const offsetMs = 2 * 60 * 60 * 1000;
+  const now = new Date(Date.now() + offsetMs);
   const hours = range === "den" ? 24 : range === "tyden" ? 168 : 720;
   const from = new Date(now - (offset + 1) * hours * 60 * 60 * 1000);
   const to = new Date(now - offset * hours * 60 * 60 * 1000);
