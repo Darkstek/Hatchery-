@@ -26,32 +26,15 @@ function formatTemp(temp) {
 
 function formatTime(timestamp) {
   if (!timestamp) return "—";
-  const d = new Date(timestamp);
-  return d.toLocaleString("cs-CZ", { timeZone: "UTC" });
+  return timestamp.replace("T", " ").substring(0, 16).replace(/-/g, ".");
 }
 
 function formatTimeShort(timestamp, range) {
   if (!timestamp) return "";
-  const d = new Date(timestamp);
-  if (range === "tyden") {
-    return d.toLocaleDateString("cs-CZ", {
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    });
-  } else if (range === "mesic") {
-    return d.toLocaleDateString("cs-CZ", {
-      day: "2-digit",
-      month: "2-digit",
-      timeZone: "UTC",
-    });
-  }
-  return d.toLocaleTimeString("cs-CZ", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  });
+  if (range === "mesic") return timestamp.substring(5, 10).replace("-", ".");
+  if (range === "tyden")
+    return timestamp.substring(5, 16).replace("T", " ").replace("-", ".");
+  return timestamp.substring(11, 16);
 }
 
 function getOffsetLabel(range, offset) {
