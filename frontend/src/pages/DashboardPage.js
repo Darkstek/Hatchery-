@@ -704,7 +704,11 @@ export default function DashboardPage({ onLogout }) {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      background: a.msg !== "OK" ? "#f87171" : "#16e20e",
+                      background: a.alertReason?.includes("normy")
+                        ? "#4ade80"
+                        : a.msg !== "OK"
+                          ? "#f87171"
+                          : "#f59e0b",
                       flexShrink: 0,
                     }}
                   />
