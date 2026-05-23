@@ -54,6 +54,29 @@ function formatTimeShort(timestamp, range) {
   });
 }
 
+function getOffsetLabel(range, offset) {
+  if (offset === 0) return "Aktuální";
+  const now = new Date();
+  const hours = range === "den" ? 24 : range === "tyden" ? 168 : 720;
+  const from = new Date(now - (offset + 1) * hours * 60 * 60 * 1000);
+  const to = new Date(now - offset * hours * 60 * 60 * 1000);
+  if (range === "den") {
+    return from.toLocaleDateString("cs-CZ", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "UTC",
+    });
+  } else if (range === "tyden") {
+    return `${from.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit", timeZone: "UTC" })} – ${to.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit", timeZone: "UTC" })}`;
+  } else {
+    return from.toLocaleDateString("cs-CZ", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+}
+
 function TempStatus({ temp, msg, tempMin, tempMax }) {
   if (msg && msg !== "OK")
     return <span style={{ color: "#f87171", fontWeight: 700 }}>{msg}</span>;
@@ -183,27 +206,25 @@ export default function DashboardPage({ onLogout }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDismissAll, setConfirmDismissAll] = useState(false);
   const [selectedRange, setSelectedRange] = useState("den");
+  const [offset, setOffset] = useState(0);
 
-  const fetchChart = useCallback(async (range) => {
+  const fetchChart = useCallback(async (range, off) => {
     setChartLoading(true);
     try {
       const hours = RANGES.find((r) => r.key === range)?.hours || 24;
-      const to = new Date();
-      const from = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const to = new Date(Date.now() - off * hours * 60 * 60 * 1000);
+      const from = new Date(to - hours * 60 * 60 * 1000);
       const m = await getMeasurementsByRange(from, to);
-      
-      if (Array.isArray(m)) {
-        setMeasurements(
-          m.reverse().map((d) => ({
-            ...d,
-            temperature:
-              d.temperature !== null
-                ? parseFloat(parseFloat(d.temperature).toFixed(1))
-                : null,
-            time: formatTimeShort(d.timestamp, range),
-          })),
-        );
-      }
+      setMeasurements(
+        m.reverse().map((d) => ({
+          ...d,
+          temperature:
+            d.temperature !== null
+              ? parseFloat(parseFloat(d.temperature).toFixed(1))
+              : null,
+          time: formatTimeShort(d.timestamp, range),
+        })),
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -219,12 +240,10 @@ export default function DashboardPage({ onLogout }) {
         getAlerts(),
         getGatewaySettings("gateway-01"),
       ]);
-
       if (settings) {
         setTempMin(settings.tempMin);
         setTempMax(settings.tempMax);
       }
-
       setLatest(l);
       setAlerts(a);
       setGateways(g);
@@ -237,14 +256,15 @@ export default function DashboardPage({ onLogout }) {
 
   useEffect(() => {
     fetchData();
-    fetchChart(selectedRange);
+    fetchChart(selectedRange, offset);
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [fetchData, fetchChart, selectedRange]);
+  }, [fetchData, fetchChart, selectedRange, offset]);
 
   const handleRangeChange = (range) => {
     setSelectedRange(range);
-    fetchChart(range);
+    setOffset(0);
+    fetchChart(range, 0);
   };
 
   const handleDeleteAlert = async (id) => {
@@ -273,6 +293,16 @@ export default function DashboardPage({ onLogout }) {
   };
 
   if (loading) return <LoadingSpinner />;
+
+  const navBtnStyle = (disabled) => ({
+    background: "transparent",
+    border: "1px solid #475569",
+    borderRadius: "6px",
+    padding: "6px 12px",
+    color: disabled ? "#334155" : "#94a3b8",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: "16px",
+  });
 
   return (
     <div style={styles.container}>
@@ -507,6 +537,8 @@ export default function DashboardPage({ onLogout }) {
             onChange={(min, max) => {
               setTempMin(min);
               setTempMax(max);
+              localStorage.setItem("tempMin", min);
+              localStorage.setItem("tempMax", max);
               updateGatewaySettings("gateway-01", min, max).catch(
                 console.error,
               );
@@ -524,7 +556,7 @@ export default function DashboardPage({ onLogout }) {
             }}
           >
             <h2 style={{ ...styles.chartTitle, margin: 0 }}>Historie teplot</h2>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               {RANGES.map((r) => (
                 <button
                   key={r.key}
@@ -546,6 +578,43 @@ export default function DashboardPage({ onLogout }) {
               ))}
             </div>
           </div>
+
+          {/* Navigace ← období → */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "16px",
+              marginBottom: "16px",
+            }}
+          >
+            <button
+              onClick={() => setOffset((o) => o + 1)}
+              style={navBtnStyle(false)}
+            >
+              ←
+            </button>
+            <span
+              style={{
+                color: "#f59e0b",
+                fontSize: "14px",
+                fontWeight: 600,
+                minWidth: "160px",
+                textAlign: "center",
+              }}
+            >
+              {getOffsetLabel(selectedRange, offset)}
+            </span>
+            <button
+              onClick={() => setOffset((o) => Math.max(0, o - 1))}
+              disabled={offset === 0}
+              style={navBtnStyle(offset === 0)}
+            >
+              →
+            </button>
+          </div>
+
           {chartLoading ? (
             <div
               style={{
@@ -643,59 +712,42 @@ export default function DashboardPage({ onLogout }) {
               </button>
             </div>
             <div style={styles.alertList}>
-              {alerts.slice(0, 10).map((a) => {
-                // Pokročilá dynamická logika vyhodnocování barev
-                let dotColor = "#f59e0b"; // Výchozí varovná oranžová (Teplota mimo rozsah)
-                
-                if (a.alertReason === "Teplota se vrátila do normy") {
-                  dotColor = "#4ade80"; // Zelená pro vyřešení stavu
-                } else if (
-                  a.alertReason === "Senzor offline" || 
-                  a.msg === "Senzor offline" || 
-                  a.temperature === null
-                ) {
-                  dotColor = "#f87171"; // Červená pro kompletní výpadek stanice / hardwarový error
-                } else if (a.msg && a.msg !== "OK") {
-                  dotColor = "#f87171"; // Červená pro jakékoliv jiné kritické hlášení brány
-                }
-
-                return (
-                  <div key={a._id} style={styles.alertRow}>
-                    <div
-                      style={{
-                        width: "10px",
-                        height: "10px",
-                        borderRadius: "50%",
-                        background: dotColor,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <p style={styles.alertText}>
-                        {a.alertReason ||
-                          (a.msg && a.msg !== "OK"
-                            ? a.msg
-                            : a.temperature < tempMin
-                              ? "Teplota pod minimem"
-                              : "Teplota nad maximem")}
-                        {" — Gateway: "}
-                        {a.gatewayId}
-                      </p>
-                      <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
-                    </div>
-                    <span style={styles.alertTemp}>
-                      {formatTemp(a.temperature)}
-                    </span>
-                    <button
-                      onClick={() => setConfirmDelete(a._id)}
-                      style={styles.deleteBtn}
-                      title="Smazat upozornění"
-                    >
-                      ✕
-                    </button>
+              {alerts.slice(0, 10).map((a) => (
+                <div key={a._id} style={styles.alertRow}>
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: a.msg !== "OK" ? "#f87171" : "#16e20e",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <p style={styles.alertText}>
+                      {a.alertReason ||
+                        (a.msg && a.msg !== "OK"
+                          ? a.msg
+                          : a.temperature < tempMin
+                            ? "Teplota pod minimem"
+                            : "Teplota nad maximem")}
+                      {" — Gateway: "}
+                      {a.gatewayId}
+                    </p>
+                    <p style={styles.alertTime}>{formatTime(a.timestamp)}</p>
                   </div>
-                );
-              })}
+                  <span style={styles.alertTemp}>
+                    {formatTemp(a.temperature)}
+                  </span>
+                  <button
+                    onClick={() => setConfirmDelete(a._id)}
+                    style={styles.deleteBtn}
+                    title="Smazat upozornění"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
