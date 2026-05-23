@@ -41,12 +41,11 @@ function getOffsetLabel(range, offset) {
   if (offset === 0) return "Aktuální";
   const offsetMs = 2 * 60 * 60 * 1000;
   const now = new Date(Date.now() + offsetMs);
-  console.log("now:", now.toISOString(), "offset:", offset);
   const hours = range === "den" ? 24 : range === "tyden" ? 168 : 720;
   const from = new Date(now - (offset + 1) * hours * 60 * 60 * 1000);
   const to = new Date(now - offset * hours * 60 * 60 * 1000);
   if (range === "den") {
-    return from.toLocaleDateString("cs-CZ", {
+    return to.toLocaleDateString("cs-CZ", {
       day: "2-digit",
       month: "2-digit",
       timeZone: "UTC",
@@ -54,7 +53,7 @@ function getOffsetLabel(range, offset) {
   } else if (range === "tyden") {
     return `${from.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit", timeZone: "UTC" })} – ${to.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit", timeZone: "UTC" })}`;
   } else {
-    return from.toLocaleDateString("cs-CZ", {
+    return to.toLocaleDateString("cs-CZ", {
       month: "long",
       year: "numeric",
       timeZone: "UTC",
